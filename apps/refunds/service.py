@@ -76,28 +76,81 @@ def submit(
     return refund
 
 
-def commit_approval(session: Session, refund_id: int, user: User) -> None:
-    """R6 step 1 (transaction A): conditional approve + pending payout row + audit, committed.
+def commit_approval(session: Session, refund_id: int, user: User) -> str:
+    """One approval step; returns the refund's new status.
 
-    R2 via forbid_actor, R4 via refunds.approve_high_value, R5 via the conditional UPDATE.
+    Refunds of $1,000 or less: submitted -> approved (R6 step 1, transaction A: conditional
+    approve + pending payout row + audit, committed). Over $1,000 (R8): the first approval moves
+    submitted -> partially_approved with no payout; a second, different approver moves
+    partially_approved -> approved and runs transaction A.
+
+    R2 via forbid_actor on every step, R4 via refunds.approve_high_value (at least one admin
+    among the approvers), R5 via the conditional UPDATE from the status this approval was
+    decided on. first_approved_by is written only on the way into partially_approved, so it
+    cannot change between the checks below and the UPDATE that requires that status.
     """
     refund = get_refund(session, refund_id)
-    if refund.status != "submitted":
+    if refund.status not in rules.REVIEWABLE_STATUSES:
         raise HTTPException(status_code=409, detail=f"Refund {refund_id} is {refund.status}")
-    if rules.requires_admin(refund.amount_cents) and not can(user, "refunds.approve_high_value"):
+    from_status, to_status = rules.approval_step(refund.amount_cents, refund.status)
+    first_approver = refund.first_approved_by if from_status == "partially_approved" else None
+    path = f"/refunds/{refund_id}/approve"
+
+    if first_approver == user.id:
+        audit.record_denied(
+            actor_id=user.id,
+            permission="refunds.approve",
+            method="POST",
+            path=path,
+            reason=f"{user.id} already approved refund {refund_id}; a different approver is needed",
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="You already approved this refund; a second, different approver is needed",
+        )
+    first_is_admin = None
+    if first_approver is not None:
+        first_is_admin = can(session.get(User, first_approver), "refunds.approve_high_value")
+    if not rules.admin_approval_satisfied(
+        refund.amount_cents, can(user, "refunds.approve_high_value"), first_is_admin
+    ):
         audit.record_denied(
             actor_id=user.id,
             permission="refunds.approve_high_value",
             method="POST",
-            path=f"/refunds/{refund_id}/approve",
+            path=path,
             reason=f"refund {refund_id} is over ${rules.HIGH_VALUE_THRESHOLD_CENTS // 100}",
         )
         raise HTTPException(status_code=403, detail="Refunds over $500 need an admin")
+
+    if to_status == "partially_approved":
+        transition(
+            session,
+            RefundRequest,
+            refund_id,
+            [from_status],
+            to_status,
+            user.id,
+            forbid_actor=refund.requested_by,
+            values={"first_approved_by": user.id},
+        )
+        audit.record(
+            session,
+            actor_id=user.id,
+            entity=ENTITY,
+            entity_id=refund_id,
+            action="partially_approve",
+            before={"status": from_status},
+            after={"status": to_status, "first_approved_by": user.id},
+        )
+        session.commit()
+        return to_status
+
     transition(
         session,
         RefundRequest,
         refund_id,
-        ["submitted"],
+        [from_status],
         "approved",
         user.id,
         forbid_actor=refund.requested_by,
@@ -105,30 +158,40 @@ def commit_approval(session: Session, refund_id: int, user: User) -> None:
     )
     key = rules.idempotency_key(refund_id)
     session.add(Payout(refund_id=refund_id, idempotency_key=key, status="pending", attempts=0))
+    before = {"status": from_status}
+    after = {"status": "approved", "reviewed_by": user.id, "idempotency_key": key}
+    if first_approver is not None:
+        before["first_approved_by"] = first_approver
+        after["approvers"] = [first_approver, user.id]
     audit.record(
         session,
         actor_id=user.id,
         entity=ENTITY,
         entity_id=refund_id,
         action="approve",
-        before={"status": "submitted"},
-        after={"status": "approved", "reviewed_by": user.id, "idempotency_key": key},
+        before=before,
+        after=after,
     )
     session.commit()
+    return "approved"
 
 
 def approve(session: Session, refund_id: int, user: User, provider: PaymentProvider) -> None:
-    commit_approval(session, refund_id, user)
-    execute_payout(session, refund_id, provider, user.id)
+    if commit_approval(session, refund_id, user) == "approved":
+        execute_payout(session, refund_id, provider, user.id)
 
 
 def reject(session: Session, refund_id: int, user: User) -> None:
+    """Rejects a refund awaiting review, including one with a first approval (R8)."""
     refund = get_refund(session, refund_id)
+    if refund.status not in rules.REVIEWABLE_STATUSES:
+        raise HTTPException(status_code=409, detail=f"Refund {refund_id} is {refund.status}")
+    from_status = refund.status
     transition(
         session,
         RefundRequest,
         refund_id,
-        ["submitted"],
+        [from_status],
         "rejected",
         user.id,
         forbid_actor=refund.requested_by,
@@ -140,7 +203,7 @@ def reject(session: Session, refund_id: int, user: User) -> None:
         entity=ENTITY,
         entity_id=refund_id,
         action="reject",
-        before={"status": "submitted"},
+        before={"status": from_status},
         after={"status": "rejected", "reviewed_by": user.id},
     )
     session.commit()

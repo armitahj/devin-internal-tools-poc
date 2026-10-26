@@ -55,6 +55,13 @@ http://localhost:8000 and switch users with the **Acting as** dropdown in the he
    recorded as `system`, with the human in `triggered_by`). Each refund page shows the same
    history for that refund.
 
+7. **Refunds over $1,000 need two approvers.** As bob, filter by `submitted` and open the
+   *Stark Industries* refund ($1,280): click **Approve (1 of 2)** — status
+   `partially_approved`, *Approvals: bob (1 of 2)*, no payout. bob's Approve is now disabled
+   ("you gave the first approval"), and frank (reviewer) cannot give the second approval
+   either, because one approver must be an admin. Switch to carol and click
+   **Approve (2 of 2)**: status `paid`, *Approvals: bob, carol (2 of 2)*, 1 payment.
+
 ## Layout
 
 - `foundation/` — shared package: auth, policy, audit, workflow, payments connector, UI partials

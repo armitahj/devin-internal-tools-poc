@@ -6,9 +6,10 @@
       <h2>Refund</h2>
       <dl>
         <dt>Status</dt><dd><span class="badge status-{{ refund.status }}" id="refund-status">{{ refund.status }}</span></dd>
-        <dt>Amount</dt><dd>{{ refund.amount_cents | cents }}{% if high_value %} <span class="badge flag-high">over $500: admin approval</span>{% endif %}</dd>
+        <dt>Amount</dt><dd>{{ refund.amount_cents | cents }}{% if two_approvers %} <span class="badge flag-high">over $1,000: two approvers, one an admin</span>{% elif high_value %} <span class="badge flag-high">over $500: admin approval</span>{% endif %}</dd>
         <dt>Reason</dt><dd>{{ refund.reason }}</dd>
         <dt>Requested by</dt><dd>{{ refund.requested_by }}</dd>
+        <dt>Approvals</dt><dd id="approvals">{% if approvers %}{{ approvers | join(", ") }}{% else %}none yet{% endif %}{% if two_approvers %} ({{ approvers | length }} of 2){% endif %}</dd>
         <dt>Reviewed by</dt><dd>{{ refund.reviewed_by or "-" }}</dd>
         <dt>Submitted</dt><dd>{{ refund.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</dd>
         <dt>Updated</dt><dd>{{ refund.updated_at | ago }}</dd>

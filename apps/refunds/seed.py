@@ -15,11 +15,11 @@ CUSTOMERS = [
     ("Initech", 48_000),
     ("Umbrella", 150_000),
     ("Hooli", 9_500),
-    ("Stark Industries", 220_000),
+    ("Stark Industries", 320_000),
     ("Wayne Enterprises", 64_000),
     ("Wonka Industries", 18_000),
     ("Soylent", 31_000),
-    ("Tyrell Corp", 175_000),
+    ("Tyrell Corp", 275_000),
     ("Cyberdyne", 7_800),
     ("Vandelay Imports", 42_000),
     ("Pied Piper", 56_000),
@@ -38,7 +38,7 @@ REFUNDS = [
     ("submitted", 3000),
     ("submitted", 45),
     ("approved", 0),
-    ("approved", 15),
+    ("partially_approved", 15),
     ("approved", 240),
     ("rejected", 300),
     ("rejected", 2000),
@@ -65,7 +65,7 @@ AGENTS = ["alice", "erin"]
 REVIEWERS = ["bob", "frank", "carol"]
 
 
-def _history(session, refund, status, reviewer, updated) -> None:
+def _history(session, refund, status, reviewer, first_approver, updated) -> None:
     """Audit rows matching what the live workflow would have written for this refund."""
 
     def add(at, actor, action, before, after):
@@ -94,7 +94,20 @@ def _history(session, refund, status, reviewer, updated) -> None:
         add(updated, reviewer, "reject", {"status": "submitted"}, {"status": "rejected"})
         return
     approved_at = updated if status == "approved" else updated - timedelta(seconds=30)
-    add(approved_at, reviewer, "approve", {"status": "submitted"}, {"status": "approved"})
+    approved_from = {"status": "submitted"}
+    if first_approver:
+        first_at = updated if status == "partially_approved" else approved_at - timedelta(minutes=5)
+        add(
+            first_at,
+            first_approver,
+            "partially_approve",
+            {"status": "submitted"},
+            {"status": "partially_approved", "first_approved_by": first_approver},
+        )
+        if status == "partially_approved":
+            return
+        approved_from = {"status": "partially_approved", "first_approved_by": first_approver}
+    add(approved_at, reviewer, "approve", approved_from, {"status": "approved"})
     if status != "approved":
         payout_status = rules.PAYOUT_STATUS_FOR_OUTCOME[status]
         add(
@@ -125,8 +138,11 @@ def seed(session: Session) -> bool:
     for i, (status, minutes) in enumerate(REFUNDS):
         tx = txs[i % len(txs)]
         amount = tx.amount_cents * 2 // 5  # two refunds per tx, each 40%: never over balance
-        reviewer = None
-        if status != "submitted":
+        reviewer = first_approver = None
+        if rules.requires_two_approvers(amount) and status != "submitted":
+            first_approver = REVIEWERS[i % 2]  # bob or frank, then carol (admin) second
+            reviewer = None if status == "partially_approved" else "carol"
+        elif status != "submitted":
             reviewer = "carol" if rules.requires_admin(amount) else REVIEWERS[i % 3]
         updated = now - timedelta(minutes=minutes)
         refund = RefundRequest(
@@ -136,13 +152,14 @@ def seed(session: Session) -> bool:
             status=status,
             requested_by=AGENTS[i % 2],
             reviewed_by=reviewer,
+            first_approved_by=first_approver,
             created_at=updated - timedelta(hours=1),
             updated_at=updated,
         )
         session.add(refund)
         session.flush()
-        _history(session, refund, status, reviewer, updated)
-        if status in ("submitted", "rejected"):
+        _history(session, refund, status, reviewer, first_approver, updated)
+        if status in ("submitted", "partially_approved", "rejected"):
             continue
         key = rules.idempotency_key(refund.id)
         provider_recorded = status in ("paid", "payment_unknown")

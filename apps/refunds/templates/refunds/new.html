@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}New refund{% endblock %}
+{% block content %}
+<h1>New refund</h1>
+{# Placeholder; the real form comes in Session 3b. #}
+<form method="post" action="/refunds">
+  <label>Transaction
+    <select name="transaction_id">{% for t in transactions %}<option value="{{ t.id }}">#{{ t.id }} {{ t.customer_name }} ({{ t.amount_cents | cents }})</option>{% endfor %}</select>
+  </label>
+  <label>Amount (cents) <input name="amount_cents" type="number" min="1" required></label>
+  <label>Reason <input name="reason" required></label>
+  <button type="submit">Submit</button>
+</form>
+{% endblock %}

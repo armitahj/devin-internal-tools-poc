@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "partials/table.html" import table %}
+{% block title %}Refund {{ refund.id }}{% endblock %}
+{% block content %}
+<h1>Refund #{{ refund.id }}</h1>
+{# Placeholder; the real detail page comes in Session 3b. #}
+<dl>
+  <dt>Status</dt><dd id="refund-status">{{ refund.status }}</dd>
+  <dt>Amount</dt><dd>{{ refund.amount_cents | cents }}</dd>
+  <dt>Reason</dt><dd>{{ refund.reason }}</dd>
+  <dt>Requested by</dt><dd>{{ refund.requested_by }}</dd>
+  <dt>Reviewed by</dt><dd>{{ refund.reviewed_by or "" }}</dd>
+  <dt>Transaction</dt><dd>#{{ transaction.id }} {{ transaction.customer_name }} ({{ transaction.amount_cents | cents }})</dd>
+  <dt>Payout</dt><dd id="payout-status">{% if payout %}{{ payout.status }} (key {{ payout.idempotency_key }}, attempts {{ payout.attempts }}){% else %}none{% endif %}</dd>
+</dl>
+{% if refund.status == "submitted" %}
+  {% if can(user, "refunds.approve") %}<form method="post" action="/refunds/{{ refund.id }}/approve"><button>Approve</button></form>{% endif %}
+  {% if can(user, "refunds.reject") %}<form method="post" action="/refunds/{{ refund.id }}/reject"><button>Reject</button></form>{% endif %}
+{% endif %}
+{% if resumable and can(user, "refunds.resume_payout") %}<form method="post" action="/refunds/{{ refund.id }}/resume-payout"><button>Resume payout</button></form>{% endif %}
+<h2>History</h2>
+{% set rows = [] %}
+{% for e in history %}{% set _ = rows.append({"at": e.at.strftime("%Y-%m-%d %H:%M:%S"), "actor": e.actor_id, "action": e.action}) %}{% endfor %}
+{{ table([("at", "At"), ("actor", "Actor"), ("action", "Action")], rows, empty="No history.") }}
+{% endblock %}

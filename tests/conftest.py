@@ -47,11 +47,15 @@ def database() -> None:
 
 @pytest.fixture(autouse=True)
 def clean_tables(database: None) -> None:
-    from foundation.db import engine
+    import apps.main  # noqa: F401  (registers every app's tables on Base.metadata)
+    from foundation.connectors.payments import get_payment_provider
+    from foundation.db import Base, engine
 
+    tables = ", ".join(t.name for t in Base.metadata.sorted_tables if t.name != "users")
     # TRUNCATE is not blocked by the audit_log UPDATE/DELETE trigger.
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE audit_log, mock_provider_ledger RESTART IDENTITY"))
+        conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+    get_payment_provider().mode = "ok"
 
 
 @pytest.fixture()

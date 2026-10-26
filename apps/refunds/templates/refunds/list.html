@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "partials/table.html" import table %}
+{% from "partials/status_filter.html" import status_filter %}
+{% block title %}Refunds{% endblock %}
+{% block content %}
+<h1>Refunds</h1>
+{# Placeholder; the dashboard UI comes in Session 3b. #}
+{% if can(user, "refunds.submit") %}<p><a href="/refunds/new">New refund</a></p>{% endif %}
+{% if can(user, "refunds.set_provider_mode") %}
+<form method="post" action="/refunds/provider-mode">
+  <label>Mock provider mode
+    <select name="mode">{% for m in modes %}<option value="{{ m }}" {% if m == provider_mode %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+  </label>
+  <button type="submit">Set</button>
+</form>
+{% endif %}
+{{ status_filter(statuses, selected_status) }}
+{% set rows = [] %}
+{% for r in refunds %}
+  {% set _ = rows.append({"id": r.id, "href": "/refunds/" ~ r.id, "amount": r.amount_cents | cents, "status": r.status, "requested_by": r.requested_by, "reviewed_by": r.reviewed_by or "", "flagged": r.amount_cents > 50000}) %}
+{% endfor %}
+{{ table([("id", "ID"), ("amount", "Amount"), ("status", "Status"), ("requested_by", "Requested by"), ("reviewed_by", "Reviewed by")], rows, empty="No refunds.") }}
+{% endblock %}

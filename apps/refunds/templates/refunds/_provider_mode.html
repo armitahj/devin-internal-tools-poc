@@ -1,0 +1,15 @@
+<section id="provider-mode" class="demo-control" aria-label="Demo control: mock payment provider mode">
+  <span class="demo-tag">Demo control</span>
+  <strong>Mock payment provider mode</strong>
+  <span>current: <code id="current-mode">{{ provider_mode }}</code></span>
+  <form class="inline" method="post" action="/refunds/provider-mode"
+        hx-post="/refunds/provider-mode" hx-target="#provider-mode" hx-swap="outerHTML">
+    <select name="mode" aria-label="Provider mode">
+      {% for m in modes %}<option value="{{ m }}" {% if m == provider_mode %}selected{% endif %}>{{ m }}</option>{% endfor %}
+    </select>
+    <button class="btn" type="submit">Set mode</button>
+  </form>
+  <p class="hint">Simulates payment-provider behaviour for demos (admin only, not a production setting).
+    <code>fail</code> declines payouts; <code>timeout_after_success</code> pays but never answers.</p>
+  {% if message %}<div class="message success" role="status">{{ message }}</div>{% endif %}
+</section>

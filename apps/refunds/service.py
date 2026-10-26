@@ -88,6 +88,8 @@ def commit_approval(session: Session, refund_id: int, user: User) -> None:
         audit.record_denied(
             actor_id=user.id,
             permission="refunds.approve_high_value",
+            method="POST",
+            path=f"/refunds/{refund_id}/approve",
             reason=f"refund {refund_id} is over ${rules.HIGH_VALUE_THRESHOLD_CENTS // 100}",
         )
         raise HTTPException(status_code=403, detail="Refunds over $500 need an admin")

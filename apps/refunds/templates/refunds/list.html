@@ -1,23 +1,40 @@
 {% extends "base.html" %}
 {% from "partials/table.html" import table %}
 {% from "partials/status_filter.html" import status_filter %}
+{% from "partials/summary_card.html" import summary_card %}
 {% block title %}Refunds{% endblock %}
 {% block content %}
-<h1>Refunds</h1>
-{# Placeholder; the dashboard UI comes in Session 3b. #}
-{% if can(user, "refunds.submit") %}<p><a href="/refunds/new">New refund</a></p>{% endif %}
-{% if can(user, "refunds.set_provider_mode") %}
-<form method="post" action="/refunds/provider-mode">
-  <label>Mock provider mode
-    <select name="mode">{% for m in modes %}<option value="{{ m }}" {% if m == provider_mode %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
-  </label>
-  <button type="submit">Set</button>
-</form>
-{% endif %}
+<div class="page-head">
+  <h1>Refunds</h1>
+  {% if can(user, "refunds.submit") %}<a class="btn primary" href="/refunds/new">New refund</a>{% endif %}
+</div>
+<div class="summary-cards">
+  {{ summary_card("Pending review", summary.pending, hint="status submitted") }}
+  {{ summary_card("Approved today", summary.approved_today, hint="since 00:00 UTC") }}
+  {{ summary_card("Payouts needing attention", summary.attention, hint="approved > 1 min, payment_failed, payment_unknown", alert=summary.attention > 0) }}
+  {{ summary_card("Refunded, last 7 days", summary.refunded_7d | cents, hint="paid refunds") }}
+</div>
+{% if can(user, "refunds.set_provider_mode") %}{% include "refunds/_provider_mode.html" %}{% endif %}
 {{ status_filter(statuses, selected_status) }}
-{% set rows = [] %}
-{% for r in refunds %}
-  {% set _ = rows.append({"id": r.id, "href": "/refunds/" ~ r.id, "amount": r.amount_cents | cents, "status": r.status, "requested_by": r.requested_by, "reviewed_by": r.reviewed_by or "", "flagged": r.amount_cents > 50000}) %}
+{% set table_rows = [] %}
+{% for r in rows %}
+  {% set refund = r.refund %}
+  {% set flags = [] %}
+  {% if r.high_value %}{% set _ = flags.append(("over $500", "flag-high")) %}{% endif %}
+  {% if r.attention %}{% set _ = flags.append(("needs attention", "flag-attention")) %}{% endif %}
+  {% set _ = table_rows.append({
+    "id": "#" ~ refund.id,
+    "href": "/refunds/" ~ refund.id,
+    "customer": r.customer,
+    "amount": refund.amount_cents | cents,
+    "status": [(refund.status, "status-" ~ refund.status)],
+    "requested_by": refund.requested_by,
+    "reviewed_by": refund.reviewed_by or "",
+    "updated": refund.updated_at | ago,
+    "flags": flags,
+    "flagged": flags | length > 0,
+    "row_class": "attention" if r.attention else "",
+  }) %}
 {% endfor %}
-{{ table([("id", "ID"), ("amount", "Amount"), ("status", "Status"), ("requested_by", "Requested by"), ("reviewed_by", "Reviewed by")], rows, empty="No refunds.") }}
+{{ table([("id", "ID"), ("customer", "Customer"), ("amount", "Amount"), ("status", "Status"), ("requested_by", "Requested by"), ("reviewed_by", "Reviewed by"), ("updated", "Updated"), ("flags", "Flags")], table_rows, empty="No refunds match this filter.") }}
 {% endblock %}

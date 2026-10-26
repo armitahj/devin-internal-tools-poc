@@ -5,6 +5,18 @@
   <title>{% block title %}Internal Tools{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/htmx.min.js" defer></script>
+  <script>
+    // Swap 4xx responses (readable error fragments retargeted to #messages) instead of
+    // dropping them, and clear old messages when a new request starts.
+    document.addEventListener("htmx:beforeSwap", (e) => {
+      const status = e.detail.xhr.status;
+      if (status >= 400 && status < 500) { e.detail.shouldSwap = true; e.detail.isError = false; }
+    });
+    document.addEventListener("htmx:beforeRequest", () => {
+      const box = document.getElementById("messages");
+      if (box) box.innerHTML = "";
+    });
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -25,6 +37,7 @@
     </form>
   </header>
   <main>
+    <div id="messages" aria-live="polite"></div>
     {% block content %}{% endblock %}
   </main>
 </body>

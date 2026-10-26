@@ -19,7 +19,7 @@ from foundation.ui import make_templates
 
 router = APIRouter(prefix="/refunds")
 templates = make_templates(Path(__file__).parent / "templates")
-templates.env.filters["cents"] = lambda c: f"${c / 100:,.2f}" if c is not None else ""
+templates.env.filters["cents"] = lambda c: rules.dollars(c) if c is not None else ""
 
 SessionDep = Annotated[Session, Depends(get_session)]
 ProviderDep = Annotated[MockPaymentProvider, Depends(get_payment_provider)]

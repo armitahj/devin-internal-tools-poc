@@ -75,7 +75,7 @@ def test_r3_over_refund_blocked(database):
     assert submit("alice", tx, 6_000).status_code == 201
     response = submit("erin", tx, 5_000)
     assert response.status_code == 409
-    assert "remaining balance of 4000" in response.text
+    assert "remaining balance of $40.00" in response.json()["detail"]
     assert submit("erin", tx, 4_000).status_code == 201
     assert submit("erin", tx, 1).status_code == 409
 

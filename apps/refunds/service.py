@@ -18,6 +18,13 @@ from foundation.models import User
 from foundation.policy import can
 from foundation.workflow import transition
 
+
+class BalanceExceeded(HTTPException):
+    """R3 rule violation: a 409, but not a stale-page race, so no "reload" hint."""
+
+    stale_page_hint = False
+
+
 ENTITY = "refund"
 
 
@@ -51,9 +58,9 @@ def submit(
         raise HTTPException(status_code=404, detail=f"Transaction {transaction_id} not found")
     already = refunded_so_far(session, transaction_id)
     if rules.exceeds_balance(tx.amount_cents, already, amount_cents):
-        raise HTTPException(
-            status_code=409,
-            detail=f"Refund exceeds remaining balance of {tx.amount_cents - already} cents",
+        remaining = rules.dollars(tx.amount_cents - already)
+        raise BalanceExceeded(
+            status_code=409, detail=f"Refund exceeds remaining balance of {remaining}"
         )
     refund = RefundRequest(
         transaction_id=transaction_id,

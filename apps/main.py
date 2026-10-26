@@ -32,7 +32,9 @@ TITLES[422] = "Check the form"
 PERMISSION_DENIED = "Permission denied: "
 
 
-def _readable(status_code: int, detail: object, user) -> tuple[str, str]:
+def _readable(
+    status_code: int, detail: object, user, stale_page_hint: bool = True
+) -> tuple[str, str]:
     text_ = str(detail)
     if status_code == 403 and text_.startswith(PERMISSION_DENIED):
         action = text_.removeprefix(PERMISSION_DENIED)
@@ -43,7 +45,7 @@ def _readable(status_code: int, detail: object, user) -> tuple[str, str]:
                 f"{user.name} ({user.role}) is not permitted to do this ({action}). "
                 "The attempt was recorded in the audit log."
             )
-    elif status_code == 409:
+    elif status_code == 409 and stale_page_hint:
         text_ = f"{text_}. The page may be out of date: reload to see the current state."
     return TITLES.get(status_code, f"Error {status_code}"), text_
 
@@ -56,10 +58,12 @@ def _is_htmx(request: Request) -> bool:
     return request.headers.get("hx-request") == "true"
 
 
-def _error_page(request: Request, status_code: int, detail: object) -> Response:
+def _error_page(
+    request: Request, status_code: int, detail: object, stale_page_hint: bool = True
+) -> Response:
     with SessionLocal() as session:
         user = user_from_cookie(request, session)
-    title, message = _readable(status_code, detail, user)
+    title, message = _readable(status_code, detail, user, stale_page_hint)
     if _is_htmx(request):
         # Render into the page's message area instead of replacing the action's target.
         return templates.TemplateResponse(
@@ -81,7 +85,7 @@ def _error_page(request: Request, status_code: int, detail: object) -> Response:
 async def html_errors(request: Request, exc: StarletteHTTPException) -> Response:
     if not _wants_html(request):
         return await http_exception_handler(request, exc)
-    return _error_page(request, exc.status_code, exc.detail)
+    return _error_page(request, exc.status_code, exc.detail, getattr(exc, "stale_page_hint", True))
 
 
 @app.exception_handler(RequestValidationError)

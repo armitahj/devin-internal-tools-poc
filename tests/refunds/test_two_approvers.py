@@ -181,7 +181,10 @@ def test_concurrent_first_approvals_one_wins_without_payout(database):
     results = run_concurrently(
         lambda: approve("bob", refund_id), lambda: approve("frank", refund_id)
     )
-    assert sorted(r.status_code for r in results) == [200, 409]
+    # The loser gets 409 if it raced the same conditional UPDATE, or 403 if it read the
+    # winner's committed partial approval (two reviewers without an admin).
+    codes = sorted(r.status_code for r in results)
+    assert codes in ([200, 403], [200, 409])
     assert refund_state(refund_id) == ("partially_approved", None)
     assert audit_actions(refund_id) == ["partially_approve"]
 

@@ -151,5 +151,7 @@ def test_views(database):
     assert agent.get("/refunds/new").status_code == 200
     detail = agent.get(f"/refunds/{refund_id}")
     assert detail.status_code == 200
-    assert "Approve" not in detail.text
-    assert "Approve" in client_as("bob").get(f"/refunds/{refund_id}").text
+    assert 'id="actions-allowed"' not in detail.text
+    assert 'id="actions-denied"' in detail.text
+    bob_detail = client_as("bob").get(f"/refunds/{refund_id}").text
+    assert "Approve" in bob_detail.split('id="actions-allowed"')[1].split("</div>")[0]

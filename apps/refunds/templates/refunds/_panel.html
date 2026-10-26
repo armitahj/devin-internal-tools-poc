@@ -1,0 +1,81 @@
+{% from "partials/table.html" import table %}
+<div id="refund-panel">
+  {% if message %}<div class="message success" role="status">{{ message }}</div>{% endif %}
+  <div class="detail-grid">
+    <section class="card">
+      <h2>Refund</h2>
+      <dl>
+        <dt>Status</dt><dd><span class="badge status-{{ refund.status }}" id="refund-status">{{ refund.status }}</span></dd>
+        <dt>Amount</dt><dd>{{ refund.amount_cents | cents }}{% if high_value %} <span class="badge flag-high">over $500: admin approval</span>{% endif %}</dd>
+        <dt>Reason</dt><dd>{{ refund.reason }}</dd>
+        <dt>Requested by</dt><dd>{{ refund.requested_by }}</dd>
+        <dt>Reviewed by</dt><dd>{{ refund.reviewed_by or "-" }}</dd>
+        <dt>Submitted</dt><dd>{{ refund.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</dd>
+        <dt>Updated</dt><dd>{{ refund.updated_at | ago }}</dd>
+      </dl>
+    </section>
+    <section class="card">
+      <h2>Transaction</h2>
+      <dl>
+        <dt>ID</dt><dd>#{{ transaction.id }}</dd>
+        <dt>Customer</dt><dd>{{ transaction.customer_name }}</dd>
+        <dt>Original amount</dt><dd>{{ transaction.amount_cents | cents }}</dd>
+        <dt>Still refundable</dt><dd>{{ remaining | cents }}</dd>
+      </dl>
+    </section>
+    <section class="card{% if attention %} alert{% endif %}">
+      <h2>Payout</h2>
+      {% if payout %}
+      <dl>
+        <dt>Status</dt><dd><span class="badge payout-{{ payout.status }}" id="payout-status">{{ payout.status }}</span>{% if attention %} <span class="badge flag-attention">needs attention</span>{% endif %}</dd>
+        <dt>Attempts</dt><dd id="payout-attempts">{{ payout.attempts }}</dd>
+        <dt>Idempotency key</dt><dd><code>{{ payout.idempotency_key }}</code></dd>
+        <dt>Provider ref</dt><dd>{{ payout.provider_ref or "-" }}</dd>
+        <dt>Last error</dt><dd>{{ payout.last_error or "-" }}</dd>
+        <dt>Provider ledger</dt><dd id="ledger-payments">{{ ledger_payments }} payment{{ "" if ledger_payments == 1 else "s" }} for this key</dd>
+      </dl>
+      {% else %}
+      <p id="payout-status" class="muted">No payout yet: one is created when the refund is approved.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Actions</h2>
+    {% set allowed = actions | selectattr("reason", "none") | list %}
+    {% set denied = actions | rejectattr("reason", "none") | list %}
+    {% if not actions %}<p class="muted">No actions apply to a {{ refund.status }} refund.</p>{% endif %}
+    {% if allowed %}
+    <div id="actions-allowed" class="actions">
+      {% for a in allowed %}
+      <form class="inline" method="post" action="/refunds/{{ refund.id }}/{{ a.verb }}"
+            hx-post="/refunds/{{ refund.id }}/{{ a.verb }}" hx-target="#refund-panel" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <button class="btn {{ 'danger' if a.verb == 'reject' else 'primary' }}" type="submit">{{ a.label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if denied %}
+    <div id="actions-denied" class="actions denied">
+      <span class="muted">Not permitted for you (the server refuses and audits the attempt):</span>
+      {% for a in denied %}
+      <form class="inline" method="post" action="/refunds/{{ refund.id }}/{{ a.verb }}"
+            hx-post="/refunds/{{ refund.id }}/{{ a.verb }}" hx-target="#refund-panel" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <button class="btn ghost" type="submit" title="{{ a.reason }}">{{ a.label }}</button>
+        <small class="muted">{{ a.reason }}</small>
+      </form>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <h2>Audit history</h2>
+  {% set rows = [] %}
+  {% for e in history %}
+    {% set change = [] %}
+    {% if e.before and e.before.status %}{% set _ = change.append(e.before.status ~ " → ") %}{% endif %}
+    {% if e.after %}{% set _ = change.append(e.after | tojson) %}{% endif %}
+    {% set _ = rows.append({"at": e.at.strftime("%Y-%m-%d %H:%M:%S"), "actor": e.actor_id or "-", "action": e.action, "change": change | join, "flagged": e.action == "denied"}) %}
+  {% endfor %}
+  {{ table([("at", "At"), ("actor", "Actor"), ("action", "Action"), ("change", "Change")], rows, empty="No history.") }}
+</div>

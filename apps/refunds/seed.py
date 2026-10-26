@@ -7,8 +7,7 @@ from sqlalchemy.orm import Session
 
 from apps.refunds import rules
 from apps.refunds.models import Payout, RefundRequest, Transaction
-from foundation import audit
-from foundation.models import MockProviderLedger
+from foundation.models import AuditLog, MockProviderLedger
 
 CUSTOMERS = [
     ("Acme Corp", 12_000),
@@ -66,6 +65,52 @@ AGENTS = ["alice", "erin"]
 REVIEWERS = ["bob", "frank", "carol"]
 
 
+def _history(session, refund, status, reviewer, updated) -> None:
+    """Audit rows matching what the live workflow would have written for this refund."""
+
+    def add(at, actor, action, before, after):
+        session.add(
+            AuditLog(
+                at=at,
+                actor_id=actor,
+                entity="refund",
+                entity_id=str(refund.id),
+                action=action,
+                before=before,
+                after=after,
+            )
+        )
+
+    add(
+        refund.created_at,
+        refund.requested_by,
+        "submit",
+        None,
+        {"status": "submitted", "amount_cents": refund.amount_cents},
+    )
+    if status == "submitted":
+        return
+    if status == "rejected":
+        add(updated, reviewer, "reject", {"status": "submitted"}, {"status": "rejected"})
+        return
+    approved_at = updated if status == "approved" else updated - timedelta(seconds=30)
+    add(approved_at, reviewer, "approve", {"status": "submitted"}, {"status": "approved"})
+    if status != "approved":
+        payout_status = rules.PAYOUT_STATUS_FOR_OUTCOME[status]
+        add(
+            updated,
+            rules.SYSTEM_ACTOR,
+            f"payout_{payout_status}",
+            {"status": "approved", "payout_status": "pending", "attempts": 0},
+            {
+                "status": status,
+                "payout_status": payout_status,
+                "attempts": 1,
+                "triggered_by": reviewer,
+            },
+        )
+
+
 def seed(session: Session) -> bool:
     if session.scalar(select(func.count()).select_from(Transaction)):
         return False
@@ -96,14 +141,7 @@ def seed(session: Session) -> bool:
         )
         session.add(refund)
         session.flush()
-        audit.record(
-            session,
-            actor_id="seed",
-            entity="refund",
-            entity_id=refund.id,
-            action="seed",
-            after={"status": status},
-        )
+        _history(session, refund, status, reviewer, updated)
         if status in ("submitted", "rejected"):
             continue
         key = rules.idempotency_key(refund.id)

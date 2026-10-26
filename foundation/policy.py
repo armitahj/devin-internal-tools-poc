@@ -14,7 +14,7 @@ from foundation.models import User
 
 POLICY_PATH = Path(__file__).with_name("policy.yaml")
 
-PUBLIC_PATHS = frozenset({"/health", "/switch-user"})
+PUBLIC_PATHS = frozenset({"/", "/health", "/switch-user"})
 PUBLIC_PATH_PREFIXES = ("/static",)
 
 

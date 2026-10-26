@@ -1,6 +1,7 @@
 {#
   table(columns, rows): columns is a list of (key, label); rows are dicts or objects.
-  A row with a truthy "flagged" value is highlighted; a row "href" links its first cell.
+  A row with a truthy "flagged" value is highlighted (plus an optional "row_class"); a row
+  "href" links its first cell. A cell holding a list of (text, css_class) pairs renders badges.
 #}
 {% macro table(columns, rows, empty="Nothing to show.") %}
 <table class="data-table">
@@ -9,9 +10,11 @@
   </thead>
   <tbody>
     {% for row in rows %}
-    <tr{% if row.flagged %} class="flagged"{% endif %}>
+    {% set classes = (["flagged"] if row.flagged else []) + ([row.row_class] if row.row_class else []) %}
+         <tr{% if classes %} class="{{ classes | join(' ') }}"{% endif %}>
       {% for key, label in columns %}
-      <td>{% if loop.first and row.href %}<a href="{{ row.href }}">{{ row[key] }}</a>{% else %}{{ row[key] }}{% endif %}</td>
+      {% set value = row[key] %}
+           <td>{% if loop.first and row.href %}<a href="{{ row.href }}">{{ value }}</a>{% elif value is sequence and value is not string %}{% for text, kind in value %}<span class="badge {{ kind }}">{{ text }}</span> {% endfor %}{% else %}{{ value }}{% endif %}</td>
       {% endfor %}
     </tr>
     {% else %}

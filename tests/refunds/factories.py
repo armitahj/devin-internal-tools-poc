@@ -22,8 +22,14 @@ def make_refund(
     requested_by: str = "alice",
     transaction_id: int | None = None,
     payout_status: str | None = None,
+    first_approved_by: str | None = None,
 ) -> int:
-    """A refund in any status; resumable statuses also get their payout row."""
+    """A refund in any status; resumable statuses also get their payout row.
+
+    partially_approved refunds default to a first approval by frank (reviewer).
+    """
+    if status == "partially_approved" and first_approved_by is None:
+        first_approved_by = "frank"
     if transaction_id is None:
         transaction_id = make_transaction(max(amount_cents, 10_000))
     with SessionLocal() as session, session.begin():
@@ -33,7 +39,8 @@ def make_refund(
             reason="test",
             status=status,
             requested_by=requested_by,
-            reviewed_by=None if status == "submitted" else "carol",
+            reviewed_by=None if status in rules.REVIEWABLE_STATUSES else "carol",
+            first_approved_by=first_approved_by,
         )
         session.add(refund)
         session.flush()

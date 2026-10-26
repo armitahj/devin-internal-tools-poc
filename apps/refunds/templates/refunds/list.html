@@ -9,7 +9,7 @@
   {% if can(user, "refunds.submit") %}<a class="btn primary" href="/refunds/new">New refund</a>{% endif %}
 </div>
 <div class="summary-cards">
-  {{ summary_card("Pending review", summary.pending, hint="status submitted") }}
+  {{ summary_card("Pending review", summary.pending, hint="submitted or partially_approved") }}
   {{ summary_card("Approved today", summary.approved_today, hint="since 00:00 UTC") }}
   {{ summary_card("Payouts needing attention", summary.attention, hint="approved > 1 min, payment_failed, payment_unknown", alert=summary.attention > 0) }}
   {{ summary_card("Refunded, last 7 days", summary.refunded_7d | cents, hint="paid refunds") }}
@@ -20,7 +20,8 @@
 {% for r in rows %}
   {% set refund = r.refund %}
   {% set flags = [] %}
-  {% if r.high_value %}{% set _ = flags.append(("over $500", "flag-high")) %}{% endif %}
+  {% if r.two_approvers %}{% set _ = flags.append(("over $1,000: 2 approvers", "flag-high")) %}
+  {% elif r.high_value %}{% set _ = flags.append(("over $500", "flag-high")) %}{% endif %}
   {% if r.attention %}{% set _ = flags.append(("needs attention", "flag-attention")) %}{% endif %}
   {% set _ = table_rows.append({
     "id": "#" ~ refund.id,
@@ -29,7 +30,7 @@
     "amount": refund.amount_cents | cents,
     "status": [(refund.status, "status-" ~ refund.status)],
     "requested_by": refund.requested_by,
-    "reviewed_by": refund.reviewed_by or "",
+    "reviewed_by": (r.approvers | join(", ") ~ " (1 of 2)") if refund.status == "partially_approved" else (refund.reviewed_by or ""),
     "updated": refund.updated_at | ago,
     "flags": flags,
     "flagged": flags | length > 0,

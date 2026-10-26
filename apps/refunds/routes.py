@@ -61,7 +61,7 @@ def summary(session: Session, now: datetime) -> dict[str, int]:
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     count = select(func.count()).select_from(RefundRequest)
     return {
-        "pending": session.scalar(count.where(RefundRequest.status == "submitted")),
+        "pending": session.scalar(count.where(RefundRequest.status.in_(rules.REVIEWABLE_STATUSES))),
         "approved_today": session.scalar(
             select(func.count(distinct(AuditLog.entity_id))).where(
                 AuditLog.entity == service.ENTITY,
@@ -78,21 +78,45 @@ def summary(session: Session, now: datetime) -> dict[str, int]:
     }
 
 
-def available_actions(user: User, refund: RefundRequest) -> list[dict]:
+def approvers(refund: RefundRequest) -> list[str]:
+    """Who has approved so far (R8: first_approved_by, then reviewed_by once approved)."""
+    names = [refund.first_approved_by] if refund.first_approved_by else []
+    if refund.reviewed_by and refund.status not in (*rules.REVIEWABLE_STATUSES, "rejected"):
+        names.append(refund.reviewed_by)
+    return names
+
+
+def available_actions(
+    user: User, refund: RefundRequest, first_approver_is_admin: bool | None = None
+) -> list[dict]:
     """Actions that apply to the refund's status, each marked allowed or not for this user."""
     own = user is not None and user.id == refund.requested_by
     actions = []
-    if refund.status == "submitted":
-        high_value = rules.requires_admin(refund.amount_cents)
+    if refund.status in rules.REVIEWABLE_STATUSES:
+        two_approvers = rules.requires_two_approvers(refund.amount_cents)
+        second = refund.status == "partially_approved"
         if not can(user, "refunds.approve"):
             approve_reason = "reviewers and admins only"
         elif own:
             approve_reason = "you requested this refund"
-        elif high_value and not can(user, "refunds.approve_high_value"):
-            approve_reason = "over $500: admin approval required"
+        elif second and user.id == refund.first_approved_by:
+            approve_reason = "you gave the first approval; a different approver is needed"
+        elif not rules.admin_approval_satisfied(
+            refund.amount_cents,
+            can(user, "refunds.approve_high_value"),
+            first_approver_is_admin if second else None,
+        ):
+            approve_reason = (
+                "over $500: the second approval must be an admin's"
+                if second
+                else "over $500: admin approval required"
+            )
         else:
             approve_reason = None
-        actions.append({"verb": "approve", "label": "Approve", "reason": approve_reason})
+        label = "Approve"
+        if two_approvers:
+            label = "Approve (2 of 2)" if second else "Approve (1 of 2)"
+        actions.append({"verb": "approve", "label": label, "reason": approve_reason})
         reject_reason = (
             "reviewers and admins only"
             if not can(user, "refunds.reject")
@@ -139,6 +163,9 @@ def _panel_context(session: Session, user: User, refund_id: int) -> dict:
             .where(MockProviderLedger.idempotency_key == payout.idempotency_key)
         )
     refunded = service.refunded_so_far(session, transaction.id)
+    first_admin = None
+    if refund.first_approved_by:
+        first_admin = can(session.get(User, refund.first_approved_by), "refunds.approve_high_value")
     return {
         "user": user,
         "refund": refund,
@@ -147,8 +174,10 @@ def _panel_context(session: Session, user: User, refund_id: int) -> dict:
         "payout": payout,
         "ledger_payments": ledger,
         "history": history,
-        "actions": available_actions(user, refund),
+        "actions": available_actions(user, refund, first_admin),
         "high_value": rules.requires_admin(refund.amount_cents),
+        "two_approvers": rules.requires_two_approvers(refund.amount_cents),
+        "approvers": approvers(refund),
         "attention": needs_attention(refund, datetime.now(UTC)),
     }
 
@@ -182,6 +211,10 @@ def _outcome_message(session: Session, refund_id: int, verb: str) -> str:
             "Resume the payout to confirm it: it reuses the same idempotency key."
         ),
         "rejected": "Refund rejected.",
+        "partially_approved": (
+            "First approval recorded (1 of 2). Refunds over $1,000 need a second, different "
+            "approver before the payout runs."
+        ),
     }.get(status, f"Refund {verb}.")
 
 
@@ -206,6 +239,8 @@ def list_refunds(
             "refund": refund,
             "customer": customer,
             "high_value": rules.requires_admin(refund.amount_cents),
+            "two_approvers": rules.requires_two_approvers(refund.amount_cents),
+            "approvers": approvers(refund),
             "attention": needs_attention(refund, now),
         }
         for refund, customer in session.execute(query)

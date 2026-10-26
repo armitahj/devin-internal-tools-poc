@@ -28,9 +28,12 @@ def test_rules_helpers():
     assert not rules.exceeds_balance(10_000, 6_000, 4_000)
     assert rules.exceeds_balance(10_000, 6_000, 4_001)
     assert set(rules.RESUMABLE_STATUSES) == {"approved", "payment_failed", "payment_unknown"}
-    assert set(rules.PAYOUT_OUTCOME_FROM) | {"submitted", "approved", "rejected"} == set(
-        rules.REFUND_STATUSES
-    )
+    assert set(rules.PAYOUT_OUTCOME_FROM) | {
+        "submitted",
+        "partially_approved",
+        "approved",
+        "rejected",
+    } == set(rules.REFUND_STATUSES)
 
 
 # R1

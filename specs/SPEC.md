@@ -99,8 +99,10 @@ Tables:
 State machine:
 From	To	Trigger	Who
 —	submitted	submit	agent
-submitted	approved	approve	reviewer/admin, not requester; admin if > $500
-submitted	rejected	reject	reviewer/admin, not requester
+submitted	approved	approve	reviewer/admin, not requester; admin if > $500; only if ≤ $1,000
+submitted	partially_approved	approve (first of two)	reviewer/admin, not requester; only if > $1,000
+partially_approved	approved	approve (second of two)	reviewer/admin, not requester, not the first approver; admin unless the first approver was
+submitted / partially_approved	rejected	reject	reviewer/admin, not requester
 approved / payment_failed / payment_unknown	paid	provider confirms success	system
 approved / payment_unknown	payment_failed	provider returns definite failure	system
 approved / payment_failed	payment_unknown	provider call times out / outcome unknown	system
@@ -117,7 +119,8 @@ Rules:
 - otherwise insert the new request. All submissions against a transaction must go 
 - through this path. Two concurrent submissions that together exceed the balance: 
 - exactly one succeeds.
-- R4 Amount > $500 requires an admin to approve.
+- R4 Amount > $500 requires an admin to approve. For two-approver refunds (R8) at least 
+- one of the two approvers must be an admin.
 - R5 (approval race) Approval is a conditional update: 
 - UPDATE refund_requests SET status='approved', reviewed_by=:u WHERE id=:id AND status='submitted'. 
 - 0 rows affected → 409. Two simultaneous approvals: exactly one wins.
@@ -131,6 +134,12 @@ Rules:
     7. The provider call is never inside a DB transaction. The idempotency key is fixed per 
     8. refund and reused on every attempt, so no number of retries, crashes or concurrent 
     9. resumes can create a second payment.
+- R8 (two approvers, change request) Amount > $1,000 requires two distinct approvers, 
+- neither of them the requester. The first approval is a conditional update 
+- submitted → partially_approved that records first_approved_by and creates no payout; 
+- the second is a conditional update partially_approved → approved (reviewed_by = second 
+- approver) and runs R6 from step 1. Two simultaneous second approvals: exactly one wins, 
+- one ledger row. A partially_approved refund can still be rejected.
 - R7 (recovery) resume_payout re-runs steps 2–3 with the same idempotency key for any 
 - refund in approved (crashed before a result was recorded), payment_failed, or 
 - payment_unknown. payment_unknown is never treated as a failure: resuming either 

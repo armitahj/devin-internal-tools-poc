@@ -16,6 +16,7 @@ from foundation.db import get_session
 from foundation.models import AuditLog, MockProviderLedger, User
 from foundation.policy import can, require
 from foundation.ui import make_templates
+from foundation.ui.labels import status_label
 
 router = APIRouter(prefix="/refunds")
 templates = make_templates(Path(__file__).parent / "templates")
@@ -205,9 +206,11 @@ def _outcome_message(session: Session, refund_id: int, verb: str) -> str:
     status = service.get_refund(session, refund_id).status
     return {
         "paid": f"Refund {verb}; payout paid.",
-        "payment_failed": f"Refund {verb}; the provider declined the payout (payment_failed).",
+        "payment_failed": (
+            f"Refund {verb}; the provider declined the payout ({status_label('payment_failed')})."
+        ),
         "payment_unknown": (
-            f"Refund {verb}; the provider did not answer, outcome unknown (payment_unknown). "
+            f"Refund {verb}; the provider did not answer ({status_label('payment_unknown')}). "
             "Resume the payout to confirm it: it reuses the same idempotency key."
         ),
         "rejected": "Refund rejected.",

@@ -258,7 +258,7 @@ def test_detail_shows_approvers_and_allows_the_second_approval(database):
         .post(f"/refunds/{refund_id}/approve", headers={"HX-Request": "true"})
         .text
     )
-    assert 'id="refund-status">paid' in html
+    assert 'id="refund-status">Paid' in html
     assert 'id="approvals">bob, carol (2 of 2)' in html
 
 

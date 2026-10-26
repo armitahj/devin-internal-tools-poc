@@ -103,7 +103,7 @@ def test_detail_shows_transaction_payout_and_history(database):
     html = client_as("bob").get(f"/refunds/{refund_id}").text
     assert "Globex" in html and "$200.00" in html
     assert "$150.00" in html  # still refundable
-    assert 'id="payout-status">succeeded' in html
+    assert 'id="payout-status">Succeeded' in html
     assert 'id="payout-attempts">1<' in html
     assert 'id="ledger-payments">1 payment for this key' in html
     assert "payout_succeeded" in html and ">system<" in html

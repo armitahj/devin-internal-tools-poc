@@ -47,7 +47,7 @@ def test_r1_agent_submits(database):
     tx = make_transaction()
     response = submit("alice", tx, 1_000)
     assert response.status_code == 201
-    assert 'id="refund-status">submitted' in response.text
+    assert 'id="refund-status">Submitted' in response.text
 
 
 @pytest.mark.parametrize("amount", [0, -5])

@@ -1,6 +1,6 @@
 # devin-internal-tools-poc
 
-## What this is
+## Description
 
 An internal-tools foundation (auth, permissions, audit, workflow, payments connector and shared UI)
 with two apps built on top of it: **refunds** and **feature flags**. Devin built it in a series of
@@ -152,7 +152,7 @@ flowchart LR
 | Denied-attempt logging | A 403 is written to the audit log in its own committed session, even if the request rolls back | [tests/test_audit.py](tests/test_audit.py) (`test_denied_...`, `test_http_denial_...`), [tests/refunds/test_ui.py](tests/refunds/test_ui.py) (`test_htmx_403_...`) |
 | Prod flag approval | Prod flags can't be toggled directly, even by an admin; an engineer's request must be approved by a different engineer or an admin | [tests/feature_flags/test_rules.py](tests/feature_flags/test_rules.py), [tests/feature_flags/test_concurrency.py](tests/feature_flags/test_concurrency.py) |
 
-## Demo script
+## Demo example flow
 
 Start from a fresh database (`docker compose down -v && docker compose up --build`), open
 http://localhost:8000 and switch users with the **Acting as** dropdown in the header.
@@ -194,7 +194,7 @@ http://localhost:8000 and switch users with the **Acting as** dropdown in the he
    click **Approve**: prod `new_checkout` is now `on`, and *Recent flag activity* shows dave's
    request and gwen's approval.
 
-## What this does NOT prove / not production-ready
+## What this does not prove / not production-ready
 
 - **Mocked SSO and payments.** Users are chosen with a cookie, and the payment provider is a mock with
   a database-backed ledger.

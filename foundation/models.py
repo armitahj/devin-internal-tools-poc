@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, Identity, String, func
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, Identity, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +25,7 @@ class AuditLog(Base):
     """Append-only. A database trigger rejects UPDATE and DELETE."""
 
     __tablename__ = "audit_log"
+    __table_args__ = (Index("ix_audit_log_entity", "entity", "entity_id"),)
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     at: Mapped[datetime] = mapped_column(

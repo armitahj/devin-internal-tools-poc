@@ -20,6 +20,7 @@ from foundation.auth import user_from_cookie
 from foundation.db import SessionLocal, get_session
 from foundation.policy import can
 from foundation.ui import STATIC_DIR, templates
+from foundation.ui.labels import cannot
 
 app = FastAPI(title="Internal Tools Foundation", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -41,10 +42,7 @@ def _readable(
         if user is None:
             text_ = "Choose a user in the header to continue."
         else:
-            text_ = (
-                f"{user.name} ({user.role}) is not permitted to do this ({action}). "
-                "The attempt was recorded in the audit log."
-            )
+            return "", f"{cannot(f'{user.name} ({user.role})', action)} This attempt was logged."
     elif status_code == 409 and stale_page_hint:
         text_ = f"{text_}. The page may be out of date: reload to see the current state."
     return TITLES.get(status_code, f"Error {status_code}"), text_
@@ -76,7 +74,12 @@ def _error_page(
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"user": user, "status_code": status_code, "title": title, "detail": message},
+        {
+            "user": user,
+            "status_code": status_code,
+            "title": TITLES.get(status_code, f"Error {status_code}"),
+            "detail": message,
+        },
         status_code=status_code,
     )
 

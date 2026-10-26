@@ -88,7 +88,10 @@ def test_htmx_errors_are_readable(database):
     denied = client_as("alice").post(
         f"/flags/{flag_id}/toggle", data={"enabled": "false"}, headers=HTMX
     )
-    assert "Alice (agent) is not permitted to do this (flags.toggle_nonprod)" in denied.text
+    assert (
+        "Alice (agent) can&#39;t change dev or staging flags. Only engineers and admins can."
+        in denied.text
+    )
 
 
 def test_seed_creates_six_flags_across_all_environments(database):

@@ -1,10 +1,11 @@
 """Readable audit entries: friendly field changes instead of raw before/after JSON."""
 
 import json
+import re
 
 from foundation.audit import DENIED
 from foundation.models import AuditLog
-from foundation.ui.labels import status_label
+from foundation.ui.labels import cannot, status_label
 
 # Display order and friendly names. Unknown keys go last, with a label derived from the key.
 LABELS = {
@@ -31,6 +32,7 @@ LABELS = {
 }
 ORDER = {key: i for i, key in enumerate(LABELS)}
 STATUS_KEYS = {"status", "payout_status"}
+ROLE_LACKS = re.compile(r"role (\S+) lacks (\S+)")
 
 
 def label(key: str) -> str:
@@ -57,6 +59,9 @@ def describe(entry: AuditLog) -> list[str]:
     if entry.action == DENIED:
         request = " ".join(p for p in (after.get("method"), after.get("path")) if p)
         reason = after.get("reason")
+        if reason and (lacks := ROLE_LACKS.fullmatch(reason)):
+            role, action = lacks.groups()
+            reason = cannot(f"{role.capitalize()}s", action)
         return [f"Denied: {request or entry.entity_id}" + (f" — {reason}" if reason else "")]
     lines = []
     for key in sorted({*before, *after}, key=lambda k: (ORDER.get(k, len(ORDER)), k)):

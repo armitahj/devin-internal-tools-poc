@@ -31,7 +31,10 @@ def test_nav_hides_links_the_user_cannot_use(client):
     client.cookies.set("user_id", "alice")
     response = client.get("/audit", headers={"accept": "text/html"})
     assert response.status_code == 403
-    assert "Alice (agent) is not permitted to do this (audit.view)" in response.text
+    assert (
+        "Alice (agent) can&#39;t view the audit log. "
+        "Only reviewers, engineers and admins can." in response.text
+    )
     assert '<a href="/audit">' not in response.text
 
 

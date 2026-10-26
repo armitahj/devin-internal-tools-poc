@@ -18,8 +18,7 @@ Stack
 
 Repo layout
 
-The shared package is named foundation/ (not platform/, which would shadow 
-Python's standard-library platform module).
+The shared package is named foundation/
 
 foundation/
   auth.py          # current_user dependency (mock: user id from cookie set by switcher)

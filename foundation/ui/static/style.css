@@ -54,3 +54,6 @@ dd { margin: 0; }
 form.stacked { display: flex; flex-direction: column; gap: .35rem; max-width: 36rem; }
 form.stacked input, form.stacked select, form.stacked textarea { font: inherit; padding: .35rem; }
 form.stacked button { align-self: flex-start; margin-top: .5rem; }
+.audit-changes { list-style: none; margin: 0; padding: 0; }
+.audit-raw summary { cursor: pointer; color: #666; font-size: .8rem; }
+.audit-raw pre { background: #f3f3f3; padding: .4rem .6rem; margin: .25rem 0 0; font-size: .8rem; white-space: pre-wrap; }

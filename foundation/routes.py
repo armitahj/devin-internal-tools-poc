@@ -1,4 +1,3 @@
-import json
 from typing import Annotated
 from urllib.parse import urlsplit
 
@@ -32,10 +31,6 @@ def switch_user(
     return response
 
 
-def _fmt(value: dict | None) -> str:
-    return json.dumps(value, sort_keys=True) if value else ""
-
-
 @router.get("/audit", response_class=HTMLResponse)
 def audit_log(
     request: Request,
@@ -52,8 +47,7 @@ def audit_log(
             "actor": e.actor_id or "-",
             "entity": f"{e.entity}:{e.entity_id}",
             "action": e.action,
-            "before": _fmt(e.before),
-            "after": _fmt(e.after),
+            "entry": e,
             "flagged": e.action == DENIED,
         }
         for e in session.scalars(query)

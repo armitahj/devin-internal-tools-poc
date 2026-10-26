@@ -1,4 +1,5 @@
 {% from "partials/table.html" import table %}
+{% from "partials/audit_change.html" import audit_change %}
 <div id="refund-panel">
   {% if message %}<div class="message success" role="status">{{ message }}</div>{% endif %}
   <div class="detail-grid">
@@ -73,10 +74,8 @@
   <h2>Audit history</h2>
   {% set rows = [] %}
   {% for e in history %}
-    {% set change = [] %}
-    {% if e.before and e.before.status %}{% set _ = change.append(e.before.status ~ " → ") %}{% endif %}
-    {% if e.after %}{% set _ = change.append(e.after | tojson) %}{% endif %}
-    {% set _ = rows.append({"at": e.at.strftime("%Y-%m-%d %H:%M:%S"), "actor": e.actor_id or "-", "action": e.action, "change": change | join, "flagged": e.action == "denied"}) %}
+    {% set change %}{{ audit_change(e) }}{% endset %}
+    {% set _ = rows.append({"at": e.at.strftime("%Y-%m-%d %H:%M:%S"), "actor": e.actor_id or "-", "action": e.action, "change": change, "flagged": e.action == "denied"}) %}
   {% endfor %}
   {{ table([("at", "At"), ("actor", "Actor"), ("action", "Action"), ("change", "Change")], rows, empty="No history.") }}
 </div>

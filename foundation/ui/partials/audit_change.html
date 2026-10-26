@@ -1,0 +1,8 @@
+{#
+  audit_change(entry): readable field changes for one audit row, with the raw JSON
+  kept in a collapsed toggle for auditors.
+#}
+{% macro audit_change(e) -%}
+<ul class="audit-changes">{% for line in audit_lines(e) %}<li>{{ line }}</li>{% endfor %}</ul>
+<details class="audit-raw"><summary>Raw JSON</summary><pre>{{ audit_json(e) }}</pre></details>
+{%- endmacro %}

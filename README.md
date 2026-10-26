@@ -161,8 +161,8 @@ http://localhost:8000 and switch users with the **Acting as** dropdown in the he
    with at least $120 still refundable (e.g. *Lakeside Veterinary Clinic*), amount `120`, any
    reason, **Submit refund**. You land on the refund's page: status `submitted`, no payout yet.
 2. **Try to approve it as alice — blocked.** Under *Actions*, alice has no permitted actions;
-   click **Approve** in the "Not permitted for you" row. A red *Not allowed* message explains
-   that alice (agent) lacks `refunds.approve`; the status is unchanged and the attempt appears
+   click **Approve** in the "Not permitted for you" row. A red message explains that
+   alice (agent) can't approve refunds and only reviewers and admins can; the status is unchanged and the attempt appears
    as a `denied` row in the refund's audit history.
 3. **As bob (reviewer), approve it — paid.** Switch to bob on the same page and click
    **Approve**. Status `paid`, payout `succeeded`, 1 attempt, 1 payment in the provider ledger.

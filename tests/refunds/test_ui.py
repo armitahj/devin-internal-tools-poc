@@ -148,8 +148,11 @@ def test_htmx_403_is_a_readable_message_and_is_in_the_refund_history(database):
     assert response.status_code == 403
     assert response.headers["HX-Retarget"] == "#messages"
     assert "<html" not in response.text and '"detail"' not in response.text
-    assert "Not allowed." in response.text
-    assert "Alice (agent) is not permitted to do this (refunds.approve)" in response.text
+    assert (
+        "Alice (agent) can&#39;t approve refunds. Only reviewers and admins can. "
+        "This attempt was logged." in response.text
+    )
+    assert "refunds.approve" not in response.text
     assert refund_state(refund_id)[0] == "submitted"
     history = client_as("carol").get(f"/refunds/{refund_id}").text.split("Audit history")[1]
     assert "denied" in history and "alice" in history
@@ -232,7 +235,10 @@ def test_htmx_provider_mode_returns_the_control(database):
     assert "Mock provider mode set to timeout_after_success." in response.text
     assert get_payment_provider().mode == "timeout_after_success"
     denied = client_as("bob").post("/refunds/provider-mode", data={"mode": "ok"}, headers=HX)
-    assert denied.status_code == 403 and "Not allowed." in denied.text
+    assert denied.status_code == 403
+    assert (
+        "Bob (reviewer) can&#39;t change the payment provider mode. Only admins can." in denied.text
+    )
 
 
 def test_root_redirects_to_refunds(client):

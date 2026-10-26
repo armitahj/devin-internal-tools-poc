@@ -75,6 +75,23 @@ def test_denied_row_reads_as_one_sentence():
     assert describe(entry("denied", entity_id="refunds.view")) == ["Denied: refunds.view"]
 
 
+def test_denied_row_uses_the_friendly_permission_wording():
+    denied = entry(
+        "denied",
+        after={
+            "method": "POST",
+            "path": "/refunds/3/approve",
+            "reason": "role agent lacks refunds.approve",
+        },
+        entity_id="refunds.approve",
+    )
+    assert describe(denied) == [
+        "Denied: POST /refunds/3/approve — Agents can't approve refunds. "
+        "Only reviewers and admins can."
+    ]
+    assert '"reason": "role agent lacks refunds.approve"' in raw_json(denied)
+
+
 def test_raw_json_keeps_both_sides():
     assert '"before": null' in raw_json(entry("submit", after={"status": "submitted"}))
 

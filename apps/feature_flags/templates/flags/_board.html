@@ -24,7 +24,7 @@
     {%- if env != "prod" -%}
       {%- if can_toggle -%}{{ action_form("/flags/" ~ flag.id ~ "/toggle", "Turn " ~ (not flag.enabled) | on_off, "btn primary" if not flag.enabled else "btn", not flag.enabled) }}{%- else -%}<span class="muted">view only</span>{%- endif -%}
     {%- elif pending -%}
-      <span class="badge status-submitted">request #{{ pending.id }} pending</span>
+      <span class="badge status-submitted">Request #{{ pending.id }}: {{ pending.status | status_label }}</span>
     {%- elif can_request -%}
       {{ action_form("/flags/" ~ flag.id ~ "/request-change", "Request turn " ~ (not flag.enabled) | on_off, "btn", not flag.enabled) }}
     {%- else -%}<span class="muted">engineers request prod changes</span>

@@ -1,11 +1,14 @@
-{# status_filter(options, selected, name="status"): GET form that reloads the page filtered. #}
-{% macro status_filter(options, selected=None, name="status", label="Status") %}
+{#
+  status_filter(options, selected, name="status", labels={}): GET form that reloads the page
+  filtered. Options submit their internal value and display labels[value] when given.
+#}
+{% macro status_filter(options, selected=None, name="status", label="Status", labels={}) %}
 <form class="status-filter" method="get">
   <label for="filter-{{ name }}">{{ label }}</label>
   <select id="filter-{{ name }}" name="{{ name }}" onchange="this.form.submit()">
     <option value="" {% if not selected %}selected{% endif %}>All</option>
     {% for option in options %}
-    <option value="{{ option }}" {% if option == selected %}selected{% endif %}>{{ option }}</option>
+    <option value="{{ option }}" {% if option == selected %}selected{% endif %}>{{ labels.get(option, option) }}</option>
     {% endfor %}
   </select>
   <noscript><button type="submit">Filter</button></noscript>

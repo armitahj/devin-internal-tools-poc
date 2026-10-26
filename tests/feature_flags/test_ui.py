@@ -30,7 +30,7 @@ def test_page_lists_flags_by_environment_with_pending_requests(database):
     for env in ("dev", "staging", "prod"):
         assert f'id="env-{env}"' in html
     assert "beta_banner" in html and "new_checkout" in html
-    assert f"request #{request_id} pending" in html
+    assert f"Request #{request_id}: Pending" in html
     assert f"/flags/requests/{request_id}/approve" in html
     assert "Pending prod requests" in html
 
@@ -116,6 +116,6 @@ def test_recent_flag_activity_is_readable_with_raw_json_toggle(database):
     assert "Enabled: off → on" in html
     assert "Flag: new_checkout" in html and "Environment: prod" in html
     assert "Requested by: gwen" in html
-    assert "Status: pending → approved" in html and "Reviewed by: carol" in html
+    assert "Status: Pending → Approved" in html and "Reviewed by: carol" in html
     assert "<details" in html and "Raw JSON" in html
     assert "&#34;key&#34;: &#34;new_checkout&#34;" in html

@@ -4,6 +4,7 @@ import json
 
 from foundation.audit import DENIED
 from foundation.models import AuditLog
+from foundation.ui.labels import status_label
 
 # Display order and friendly names. Unknown keys go last, with a label derived from the key.
 LABELS = {
@@ -29,6 +30,7 @@ LABELS = {
     "error": "Error",
 }
 ORDER = {key: i for i, key in enumerate(LABELS)}
+STATUS_KEYS = {"status", "payout_status"}
 
 
 def label(key: str) -> str:
@@ -38,6 +40,8 @@ def label(key: str) -> str:
 def value(key: str, v: object) -> str:
     if v is None:
         return "-"
+    if key in STATUS_KEYS and isinstance(v, str):
+        return status_label(v)
     if isinstance(v, bool):
         return "on" if v else "off"
     if key.endswith("_cents") and isinstance(v, int):

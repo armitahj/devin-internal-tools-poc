@@ -15,7 +15,7 @@ def entry(action="approve", before=None, after=None, entity_id="1"):
 
 def test_submit_without_before_shows_just_the_values_with_money_in_dollars():
     lines = describe(entry("submit", after={"amount_cents": 110_000, "status": "submitted"}))
-    assert lines == ["Status: submitted", "Amount: $1,100.00"]
+    assert lines == ["Status: Submitted", "Amount: $1,100.00"]
 
 
 def test_changes_show_before_and_after_and_skip_empty_values():
@@ -34,8 +34,8 @@ def test_changes_show_before_and_after_and_skip_empty_values():
         )
     )
     assert lines == [
-        "Status: approved → paid",
-        "Payout status: pending → succeeded",
+        "Status: Approved → Paid",
+        "Payout status: Pending → Succeeded",
         "Attempts: 0 → 1",
         "Triggered by: carol",
         "Provider reference: mock-1",
@@ -49,7 +49,7 @@ def test_second_approval_keeps_the_first_approver():
             after={"status": "approved", "reviewed_by": "carol", "approvers": ["bob", "carol"]},
         )
     )
-    assert "Status: partially_approved → approved" in lines
+    assert "Status: Awaiting second approval → Approved" in lines
     assert "First approved by: bob" in lines
     assert "Approvers: bob, carol" in lines
 
@@ -95,9 +95,10 @@ def test_audit_page_and_refund_history_are_readable_with_raw_json_toggle(databas
     history = client_as("carol").get(f"/refunds/{refund_id}").text.split("Audit history")[1]
     for html in (audit, history):
         assert "Amount: $72.00" in html
-        assert "Status: submitted → approved" in html
-        assert "Payout status: pending → succeeded" in html
+        assert "Status: Submitted → Approved" in html
+        assert "Payout status: Pending → Succeeded" in html
         assert "Triggered by: carol" in html
         assert "<details" in html and "Raw JSON" in html
         assert "&#34;amount_cents&#34;: 7200" in html
+        assert "&#34;status&#34;: &#34;submitted&#34;" in html
     assert "<th>Before</th>" not in audit

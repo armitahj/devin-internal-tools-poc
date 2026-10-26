@@ -6,7 +6,7 @@
     <section class="card">
       <h2>Refund</h2>
       <dl>
-        <dt>Status</dt><dd><span class="badge status-{{ refund.status }}" id="refund-status">{{ refund.status }}</span></dd>
+        <dt>Status</dt><dd><span class="badge status-{{ refund.status }}" id="refund-status">{{ refund.status | status_label }}</span></dd>
         <dt>Amount</dt><dd>{{ refund.amount_cents | cents }}{% if two_approvers %} <span class="badge flag-high">over $1,000: two approvers, one an admin</span>{% elif high_value %} <span class="badge flag-high">over $500: admin approval</span>{% endif %}</dd>
         <dt>Reason</dt><dd>{{ refund.reason }}</dd>
         <dt>Requested by</dt><dd>{{ refund.requested_by }}</dd>
@@ -29,7 +29,7 @@
       <h2>Payout</h2>
       {% if payout %}
       <dl>
-        <dt>Status</dt><dd><span class="badge payout-{{ payout.status }}" id="payout-status">{{ payout.status }}</span>{% if attention %} <span class="badge flag-attention">needs attention</span>{% endif %}</dd>
+        <dt>Status</dt><dd><span class="badge payout-{{ payout.status }}" id="payout-status">{{ payout.status | status_label }}</span>{% if attention %} <span class="badge flag-attention">needs attention</span>{% endif %}</dd>
         <dt>Attempts</dt><dd id="payout-attempts">{{ payout.attempts }}</dd>
         <dt>Idempotency key</dt><dd><code>{{ payout.idempotency_key }}</code></dd>
         <dt>Provider ref</dt><dd>{{ payout.provider_ref or "-" }}</dd>
@@ -46,7 +46,7 @@
     <h2>Actions</h2>
     {% set allowed = actions | selectattr("reason", "none") | list %}
     {% set denied = actions | rejectattr("reason", "none") | list %}
-    {% if not actions %}<p class="muted">No actions apply to a {{ refund.status }} refund.</p>{% endif %}
+    {% if not actions %}<p class="muted">No actions apply to this refund ({{ refund.status | status_label }}).</p>{% endif %}
     {% if allowed %}
     <div id="actions-allowed" class="actions">
       {% for a in allowed %}

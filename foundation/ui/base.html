@@ -23,6 +23,7 @@
     <nav class="nav">
       <strong>Internal Tools</strong>
       {% if can(user, "refunds.view") %}<a href="/refunds">Refunds</a>{% endif %}
+      {% if can(user, "flags.view") %}<a href="/flags">Feature flags</a>{% endif %}
       {% if can(user, "audit.view") %}<a href="/audit">Audit log</a>{% endif %}
     </nav>
     <form class="user-switcher" method="post" action="/switch-user">

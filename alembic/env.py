@@ -3,7 +3,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-import apps.refunds.models  # noqa: F401  (registers tables on Base.metadata)
+import apps.feature_flags.models  # noqa: F401  (registers tables on Base.metadata)
+import apps.refunds.models  # noqa: F401
 import foundation.models  # noqa: F401
 from foundation.db import Base, database_url
 

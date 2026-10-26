@@ -13,16 +13,19 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from apps.feature_flags import routes as flags_routes
 from apps.refunds import routes as refunds_routes
 from foundation import routes as foundation_routes
 from foundation.auth import user_from_cookie
 from foundation.db import SessionLocal, get_session
+from foundation.policy import can
 from foundation.ui import STATIC_DIR, templates
 
 app = FastAPI(title="Internal Tools Foundation", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(foundation_routes.router)
 app.include_router(refunds_routes.router)
+app.include_router(flags_routes.router)
 
 TITLES = {400: "Bad request", 403: "Not allowed", 404: "Not found", 409: "Conflict"}
 TITLES[422] = "Check the form"
@@ -90,8 +93,11 @@ async def html_validation_errors(request: Request, exc: RequestValidationError) 
 
 
 @app.get("/", include_in_schema=False)
-def index() -> RedirectResponse:
-    return RedirectResponse("/refunds", status_code=303)
+def index(request: Request) -> RedirectResponse:
+    with SessionLocal() as session:
+        user = user_from_cookie(request, session)
+    home = "/flags" if can(user, "flags.view") and not can(user, "refunds.view") else "/refunds"
+    return RedirectResponse(home, status_code=303)
 
 
 @app.get("/health")

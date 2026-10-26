@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% from "partials/status_filter.html" import status_filter %}
+{% block title %}Feature flags{% endblock %}
+{% block content %}
+<h1>Feature flags</h1>
+<p class="muted">dev and staging flags are toggled directly. prod flags change only when a
+  different engineer or an admin approves a change request. Every change is audited.</p>
+{{ status_filter(all_environments, selected_environment, name="environment", label="Environment") }}
+<div id="flags-board">{% include "flags/_board.html" %}</div>
+{% endblock %}

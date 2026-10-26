@@ -10,21 +10,21 @@ from apps.refunds.models import Payout, RefundRequest, Transaction
 from foundation.models import AuditLog, MockProviderLedger
 
 CUSTOMERS = [
-    ("Acme Corp", 12_000),
-    ("Globex", 25_000),
-    ("Initech", 48_000),
-    ("Umbrella", 150_000),
-    ("Hooli", 9_500),
-    ("Stark Industries", 320_000),
-    ("Wayne Enterprises", 64_000),
-    ("Wonka Industries", 18_000),
-    ("Soylent", 31_000),
-    ("Tyrell Corp", 275_000),
-    ("Cyberdyne", 7_800),
-    ("Vandelay Imports", 42_000),
-    ("Pied Piper", 56_000),
-    ("Dunder Mifflin", 15_500),
-    ("Oceanic Airlines", 99_000),
+    ("Harbor Street Bakery", 12_000),
+    ("Brightline Dental Group", 25_000),
+    ("Cedar Ridge Hardware", 48_000),
+    ("Lakeside Veterinary Clinic", 150_000),
+    ("Maple Avenue Florist", 9_500),
+    ("Summit Freight Logistics", 320_000),
+    ("Granite Peak Construction", 64_000),
+    ("Riverside Fitness Studio", 18_000),
+    ("Oakwood Furniture Co.", 31_000),
+    ("Northgate Medical Supply", 275_000),
+    ("Corner Coffee Roasters", 7_800),
+    ("Bluewater Marine Supply", 42_000),
+    ("Pinecrest IT Consulting", 56_000),
+    ("Elm Street Print Shop", 15_500),
+    ("Westfield Travel Agency", 99_000),
 ]
 
 # (status, minutes since last update). 30 refunds, two per transaction.

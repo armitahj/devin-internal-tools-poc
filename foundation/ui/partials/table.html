@@ -1,0 +1,22 @@
+{#
+  table(columns, rows): columns is a list of (key, label); rows are dicts or objects.
+  A row with a truthy "flagged" value is highlighted; a row "href" links its first cell.
+#}
+{% macro table(columns, rows, empty="Nothing to show.") %}
+<table class="data-table">
+  <thead>
+    <tr>{% for key, label in columns %}<th>{{ label }}</th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr{% if row.flagged %} class="flagged"{% endif %}>
+      {% for key, label in columns %}
+      <td>{% if loop.first and row.href %}<a href="{{ row.href }}">{{ row[key] }}</a>{% else %}{{ row[key] }}{% endif %}</td>
+      {% endfor %}
+    </tr>
+    {% else %}
+    <tr><td colspan="{{ columns | length }}" class="empty">{{ empty }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}

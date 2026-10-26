@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Internal Tools{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="nav">
+      <strong>Internal Tools</strong>
+      {% if can(user, "audit.view") %}<a href="/audit">Audit log</a>{% endif %}
+    </nav>
+    <form class="user-switcher" method="post" action="/switch-user">
+      <label for="user-switcher">Acting as</label>
+      <select id="user-switcher" name="user_id" onchange="this.form.submit()">
+        <option value="" disabled {% if not user %}selected{% endif %}>choose a user</option>
+        {% for u in switcher_users %}
+        <option value="{{ u.id }}" {% if user and user.id == u.id %}selected{% endif %}>{{ u.name }} ({{ u.role }})</option>
+        {% endfor %}
+      </select>
+      <noscript><button type="submit">Switch</button></noscript>
+    </form>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

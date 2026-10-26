@@ -1,0 +1,8 @@
+{# summary_card(label, value, hint=None, alert=False) #}
+{% macro summary_card(label, value, hint=None, alert=False) %}
+<div class="summary-card{% if alert %} alert{% endif %}">
+  <div class="summary-label">{{ label }}</div>
+  <div class="summary-value">{{ value }}</div>
+  {% if hint %}<div class="summary-hint">{{ hint }}</div>{% endif %}
+</div>
+{% endmacro %}

@@ -1,0 +1,13 @@
+{# status_filter(options, selected, name="status"): GET form that reloads the page filtered. #}
+{% macro status_filter(options, selected=None, name="status", label="Status") %}
+<form class="status-filter" method="get">
+  <label for="filter-{{ name }}">{{ label }}</label>
+  <select id="filter-{{ name }}" name="{{ name }}" onchange="this.form.submit()">
+    <option value="" {% if not selected %}selected{% endif %}>All</option>
+    {% for option in options %}
+    <option value="{{ option }}" {% if option == selected %}selected{% endif %}>{{ option }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit">Filter</button></noscript>
+</form>
+{% endmacro %}

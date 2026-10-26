@@ -9,6 +9,7 @@ from foundation.db import SessionLocal
 from foundation.models import User
 from tests.refunds.factories import (
     audit_actions,
+    audit_rows,
     ledger_rows,
     make_refund,
     refund_state,
@@ -108,7 +109,8 @@ def test_crash_after_approval_commit_then_resume_pays_once(database):
 def test_two_concurrent_resumes_pay_once(database):
     refund_id = make_refund(10_000, status="payment_unknown")
     results = run_concurrently(lambda: resume(refund_id, "bob"), lambda: resume(refund_id, "carol"))
-    assert [r.status_code for r in results] == [200, 200]
+    # A resume that arrives after the other has recorded "paid" is a 409 (nothing to resume).
+    assert sorted(r.status_code for r in results) in ([200, 200], [200, 409])
     status, payout = refund_state(refund_id)
     assert (status, payout.status, payout.attempts) == ("paid", "succeeded", 1)
     assert ledger_rows(refund_id) == 1
@@ -164,3 +166,49 @@ def test_set_provider_mode_rejects_unknown_mode(database):
     assert response.status_code == 422
     assert get_payment_provider().mode == "ok"
     assert audit_actions(entity="mock_payment_provider") == []
+
+
+def test_payout_outcomes_are_attributed_to_system(database):
+    """SPEC state machine: provider outcomes are 'system' transitions; the human is triggered_by."""
+    refund_id = make_refund(10_000)
+    set_mode("timeout_after_success")
+    assert approve(refund_id, "bob").status_code == 200
+    set_mode("ok")
+    assert resume(refund_id, "frank").status_code == 200
+    assert [(r.action, r.actor_id, r.after.get("triggered_by")) for r in audit_rows(refund_id)] == [
+        ("approve", "bob", None),
+        ("payout_unknown", "system", "bob"),
+        ("payout_succeeded", "system", "frank"),
+    ]
+
+
+def test_overlapping_resumes_audit_the_committed_payout_state(database):
+    """A resume that records its result after another one must audit the fresh payout row."""
+    refund_id = make_refund(10_000, status="payment_failed")  # payout attempts = 0
+    get_payment_provider().mode = "fail"
+    interleaved: list[bool] = []
+
+    class InterleavingProvider(MockPaymentProvider):
+        def refund(self, idempotency_key, amount_cents):
+            if not interleaved:  # a second resume completes while this call is in flight
+                interleaved.append(True)
+                with SessionLocal() as session:
+                    service.resume_payout(
+                        session, refund_id, session.get(User, "frank"), get_payment_provider()
+                    )
+            return super().refund(idempotency_key, amount_cents)
+
+    spy = InterleavingProvider()
+    spy.mode = "fail"
+    app.dependency_overrides[get_payment_provider] = lambda: spy
+    try:
+        assert resume(refund_id, "bob").status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_payment_provider)
+
+    status, payout = refund_state(refund_id)
+    assert (status, payout.status, payout.attempts) == ("payment_failed", "failed", 2)
+    rows = audit_rows(refund_id)
+    assert [(r.before["attempts"], r.after["attempts"]) for r in rows] == [(0, 1), (1, 2)]
+    assert [r.before["payout_status"] for r in rows] == ["failed", "failed"]
+    assert ledger_rows(refund_id) == 0

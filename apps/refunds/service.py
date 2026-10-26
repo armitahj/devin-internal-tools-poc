@@ -155,7 +155,7 @@ def resume_payout(session: Session, refund_id: int, user: User, provider: Paymen
 
 
 def execute_payout(
-    session: Session, refund_id: int, provider: PaymentProvider, actor_id: str
+    session: Session, refund_id: int, provider: PaymentProvider, triggered_by: str
 ) -> None:
     """R6 steps 2-3: provider call outside any DB transaction, then record the result."""
     payout = session.scalar(select(Payout).where(Payout.refund_id == refund_id))
@@ -173,18 +173,23 @@ def execute_payout(
     except PaymentError as exc:
         outcome, error = "payment_failed", str(exc)
 
-    record_payout_result(session, refund_id, outcome, actor_id, provider_ref, error)
+    record_payout_result(session, refund_id, outcome, triggered_by, provider_ref, error)
 
 
 def record_payout_result(
     session: Session,
     refund_id: int,
     outcome: str,
-    actor_id: str,
+    triggered_by: str,
     provider_ref: str | None = None,
     error: str | None = None,
 ) -> None:
-    """R6 transaction B. Locks the refund so concurrent results are recorded one at a time."""
+    """R6 transaction B. Locks the refund so concurrent results are recorded one at a time.
+
+    Provider outcomes are system transitions (SPEC state machine); the user who approved or
+    resumed is kept as triggered_by.
+    """
+    actor_id = rules.SYSTEM_ACTOR
     refund = get_refund(session, refund_id, for_update=True)
     if refund.status == "paid":
         session.rollback()  # another attempt already recorded the (idempotent) success
@@ -194,7 +199,13 @@ def record_payout_result(
         raise HTTPException(
             status_code=409, detail=f"Refund {refund_id} is {refund.status}; cannot be {outcome}"
         )
-    payout = session.scalar(select(Payout).where(Payout.refund_id == refund_id))
+    # Re-read under lock: the session may still hold the payout loaded before the provider call.
+    payout = session.scalar(
+        select(Payout)
+        .where(Payout.refund_id == refund_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     before = {"status": refund.status, "payout_status": payout.status, "attempts": payout.attempts}
     if refund.status != outcome:
         transition(session, RefundRequest, refund_id, [refund.status], outcome, actor_id)
@@ -225,6 +236,7 @@ def record_payout_result(
             "attempts": before["attempts"] + 1,
             "provider_ref": provider_ref,
             "error": error,
+            "triggered_by": triggered_by,
         },
     )
     session.commit()

@@ -7,6 +7,7 @@ without an entry (and therefore without an audit assertion) fails the suite.
 import pytest
 
 from apps.main import app
+from apps.refunds import rules
 from foundation.connectors.payments import get_payment_provider
 from foundation.db import SessionLocal
 from foundation.models import AuditLog
@@ -66,7 +67,11 @@ def test_state_changing_route_writes_one_audit_row_per_change(database, path):
         rows = session.query(AuditLog).filter(AuditLog.action != "seed").order_by(AuditLog.id)
         rows = rows.all()
     assert [r.action for r in rows] == expected
-    assert all(r.actor_id == user for r in rows)
+    for row in rows:
+        if row.action.startswith("payout_"):  # provider outcomes are system transitions
+            assert (row.actor_id, row.after["triggered_by"]) == (rules.SYSTEM_ACTOR, user)
+        else:
+            assert row.actor_id == user
     assert len({r.entity_id for r in rows}) == 1
     if rows[0].entity == "refund":
         status, _ = refund_state(int(rows[0].entity_id))

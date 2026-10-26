@@ -78,3 +78,14 @@ def audit_actions(entity_id: object | None = None, entity: str = "refund") -> li
         if entity_id is not None:
             query = query.where(AuditLog.entity_id == str(entity_id))
         return list(session.scalars(query))
+
+
+def audit_rows(entity_id: object, entity: str = "refund") -> list[AuditLog]:
+    with SessionLocal() as session:
+        return list(
+            session.scalars(
+                select(AuditLog)
+                .where(AuditLog.entity == entity, AuditLog.entity_id == str(entity_id))
+                .order_by(AuditLog.id)
+            )
+        )

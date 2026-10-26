@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from apps.refunds import routes as refunds_routes
 from foundation import routes as foundation_routes
 from foundation.auth import user_from_cookie
 from foundation.db import SessionLocal, get_session
@@ -17,6 +18,7 @@ from foundation.ui import STATIC_DIR, templates
 app = FastAPI(title="Internal Tools Foundation", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(foundation_routes.router)
+app.include_router(refunds_routes.router)
 
 
 @app.exception_handler(StarletteHTTPException)

@@ -1,0 +1,75 @@
+{% from "partials/table.html" import table %}
+{% from "partials/summary_card.html" import summary_card %}
+{% macro action_form(url, label, css="btn", enabled=None) -%}
+<form class="inline" method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="#flags-board" hx-swap="innerHTML">
+  {% if enabled is not none %}<input type="hidden" name="enabled" value="{{ 'true' if enabled else 'false' }}">{% endif %}
+  {% if selected_environment %}<input type="hidden" name="environment" value="{{ selected_environment }}">{% endif %}
+  <button class="{{ css }}" type="submit">{{ label }}</button>
+</form>
+{%- endmacro %}
+{% if message %}<div class="message success" role="status">{{ message }}</div>{% endif %}
+<div class="summary-cards">
+  {{ summary_card("Flags", summary.flags, hint="across dev, staging and prod") }}
+  {{ summary_card("On in prod", summary.prod_on, hint="prod flags enabled") }}
+  {{ summary_card("Pending prod requests", summary.pending, hint="awaiting a second engineer or an admin", alert=summary.pending > 0) }}
+</div>
+
+{% for env in environments %}
+<h2 id="env-{{ env }}">{{ env }}{% if env == "prod" %} <span class="badge flag-high">approval required</span>{% endif %}</h2>
+{% set rows = [] %}
+{% for flag in flags if flag.environment == env %}
+  {% set pending = pending_by_flag.get(flag.id) %}
+  {% set action %}
+    {%- if env != "prod" -%}
+      {%- if can_toggle -%}{{ action_form("/flags/" ~ flag.id ~ "/toggle", "Turn " ~ (not flag.enabled) | on_off, "btn primary" if not flag.enabled else "btn", not flag.enabled) }}{%- else -%}<span class="muted">view only</span>{%- endif -%}
+    {%- elif pending -%}
+      <span class="badge status-submitted">request #{{ pending.id }} pending</span>
+    {%- elif can_request -%}
+      {{ action_form("/flags/" ~ flag.id ~ "/request-change", "Request turn " ~ (not flag.enabled) | on_off, "btn", not flag.enabled) }}
+    {%- else -%}<span class="muted">engineers request prod changes</span>
+    {%- endif -%}
+  {% endset %}
+  {% set _ = rows.append({
+    "key": flag.key,
+    "state": [(flag.enabled | on_off, "status-paid" if flag.enabled else "status-rejected")],
+    "updated": flag.updated_at | ago,
+    "action": action,
+    "flagged": pending is not none,
+  }) %}
+{% endfor %}
+{{ table([("key", "Flag"), ("state", "State"), ("updated", "Updated"), ("action", "Action")], rows, empty="No flags in " ~ env ~ ".") }}
+{% endfor %}
+
+<h2 id="pending-requests">Pending prod change requests</h2>
+{% set req_rows = [] %}
+{% for req, flag in pending %}
+  {% set decide %}
+    {%- if not can_decide -%}<span class="muted">engineers and admins decide</span>
+    {%- elif req.requested_by == user.id -%}<span class="muted">your request: another engineer or an admin must approve it</span>
+    {%- else -%}{{ action_form("/flags/requests/" ~ req.id ~ "/approve", "Approve", "btn primary") }} {{ action_form("/flags/requests/" ~ req.id ~ "/reject", "Reject", "btn danger") }}
+    {%- endif -%}
+  {% endset %}
+  {% set _ = req_rows.append({
+    "id": "#" ~ req.id,
+    "flag": flag.environment ~ " " ~ flag.key,
+    "change": flag.enabled | on_off ~ " → " ~ req.desired_enabled | on_off,
+    "requested_by": req.requested_by,
+    "age": req.created_at | ago,
+    "decide": decide,
+  }) %}
+{% endfor %}
+{{ table([("id", "Request"), ("flag", "Flag"), ("change", "Change"), ("requested_by", "Requested by"), ("age", "Opened"), ("decide", "Decision")], req_rows, empty="No pending prod requests.") }}
+
+<h2>Recent flag activity</h2>
+{% set audit_rows = [] %}
+{% for e in recent %}
+  {% set _ = audit_rows.append({
+    "at": e.at.strftime("%Y-%m-%d %H:%M:%S"),
+    "actor": e.actor_id or "-",
+    "what": e.entity ~ " #" ~ e.entity_id,
+    "action": e.action,
+    "after": e.after | tojson if e.after else "",
+  }) %}
+{% endfor %}
+{{ table([("at", "At"), ("actor", "Actor"), ("what", "Entity"), ("action", "Action"), ("after", "Change")], audit_rows, empty="No flag activity yet.") }}
+<p class="muted">Full history, including denied attempts, is in the <a href="/audit">audit log</a>.</p>

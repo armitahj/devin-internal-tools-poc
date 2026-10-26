@@ -41,3 +41,29 @@ ROUTE_FIXTURES.update(
         ("POST", "/refunds/provider-mode"): lambda session: {"data": {"mode": "ok"}},
     }
 )
+
+
+def _flag(environment: str, enabled: bool = False, data: dict | None = None) -> RouteFixture:
+    def fixture(session: Session) -> dict[str, Any]:
+        from tests.feature_flags.factories import make_flag
+
+        return {"path_params": {"flag_id": make_flag(environment, enabled)}, "data": data}
+
+    return fixture
+
+
+def _flag_request(session: Session) -> dict[str, Any]:
+    from tests.feature_flags.factories import make_request
+
+    # Requested by gwen so dave (engineer) and carol (admin) are both valid approvers.
+    return {"path_params": {"request_id": make_request(requested_by="gwen")}}
+
+
+ROUTE_FIXTURES.update(
+    {
+        ("POST", "/flags/{flag_id}/toggle"): _flag("dev", data={"enabled": "true"}),
+        ("POST", "/flags/{flag_id}/request-change"): _flag("prod", data={"enabled": "true"}),
+        ("POST", "/flags/requests/{request_id}/approve"): _flag_request,
+        ("POST", "/flags/requests/{request_id}/reject"): _flag_request,
+    }
+)

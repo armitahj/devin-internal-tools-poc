@@ -78,6 +78,11 @@ def admin_approval_satisfied(
     return first_approver_is_admin
 
 
+def dollars(cents: int) -> str:
+    """Money for people: 7200 -> "$72.00"."""
+    return f"${cents / 100:,.2f}"
+
+
 def exceeds_balance(original_cents: int, already_refunded_cents: int, requested_cents: int) -> bool:
     """R3: non-rejected refunds against a transaction may not exceed its original amount."""
     return already_refunded_cents + requested_cents > original_cents

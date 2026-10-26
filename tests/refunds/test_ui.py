@@ -205,8 +205,22 @@ def test_htmx_submit_errors_are_readable(database):
         "/refunds", data={"transaction_id": tx, "amount": "150", "reason": "x"}, headers=HX
     )
     assert over.status_code == 409 and "Conflict." in over.text
+    assert "remaining balance of $100.00" in over.text
+    assert "cents" not in over.text and "reload" not in over.text
     missing = alice.post("/refunds", data={"transaction_id": tx, "amount": "5"}, headers=HX)
     assert missing.status_code == 422 and "reason: field required" in missing.text
+
+
+def test_plain_browser_over_balance_error_is_in_dollars_without_reload_hint(database):
+    tx = make_transaction(7_200)
+    response = client_as("alice").post(
+        "/refunds",
+        data={"transaction_id": tx, "amount": "80", "reason": "x"},
+        headers={"accept": "text/html"},
+    )
+    assert response.status_code == 409 and "<html" in response.text
+    assert "remaining balance of $72.00" in response.text
+    assert "reload" not in response.text
 
 
 def test_htmx_provider_mode_returns_the_control(database):

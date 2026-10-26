@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "partials/table.html" import table %}
+{% from "partials/status_filter.html" import status_filter %}
+{% from "partials/summary_card.html" import summary_card %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<h1>Audit log</h1>
+<div class="summary-cards">
+  {{ summary_card("Entries", total) }}
+  {{ summary_card("Denied requests", denied, alert=denied > 0) }}
+</div>
+{{ status_filter(actions, selected_action, name="action", label="Action") }}
+{{ table([("at", "At"), ("actor", "Actor"), ("entity", "Entity"), ("action", "Action"), ("before", "Before"), ("after", "After")], rows, empty="No audit entries.") }}
+{% endblock %}

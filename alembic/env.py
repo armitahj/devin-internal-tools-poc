@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
+import foundation.models  # noqa: F401  (registers tables on Base.metadata)
 from foundation.db import Base, database_url
 
 config = context.config

@@ -139,7 +139,7 @@ def test_htmx_approve_returns_the_panel_fragment(database):
     assert response.status_code == 200
     assert "<html" not in response.text
     assert response.text.lstrip().startswith('<div id="refund-panel">')
-    assert "Refund approved; payout paid." in response.text
+    assert "Refund approved and paid." in response.text
 
 
 def test_htmx_403_is_a_readable_message_and_is_in_the_refund_history(database):
@@ -232,7 +232,10 @@ def test_htmx_provider_mode_returns_the_control(database):
     )
     assert response.status_code == 200
     assert 'id="current-mode">timeout_after_success' in response.text
-    assert "Mock provider mode set to timeout_after_success." in response.text
+    assert (
+        "Demo payment provider set to timeout_after_success: it pays but doesn&#39;t confirm."
+        in response.text
+    )
     assert get_payment_provider().mode == "timeout_after_success"
     denied = client_as("bob").post("/refunds/provider-mode", data={"mode": "ok"}, headers=HX)
     assert denied.status_code == 403

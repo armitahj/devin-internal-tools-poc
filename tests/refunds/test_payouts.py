@@ -1,5 +1,7 @@
 """R6 and R7: payouts, provider failures, crash recovery and resume."""
 
+import html
+
 from sqlalchemy import create_engine, text
 
 from apps.main import app
@@ -212,3 +214,33 @@ def test_overlapping_resumes_audit_the_committed_payout_state(database):
     assert [(r.before["attempts"], r.after["attempts"]) for r in rows] == [(0, 1), (1, 2)]
     assert [r.before["payout_status"] for r in rows] == ["failed", "failed"]
     assert ledger_rows(refund_id) == 0
+
+
+def test_approve_and_resume_messages_are_plain_english(database):
+    def message(response) -> str:
+        assert response.status_code == 200
+        text = html.unescape(response.text)
+        assert "idempotency key" not in text
+        return text
+
+    set_mode("timeout_after_success")
+    unknown = make_refund(10_000)
+    assert (
+        "Refund approved, but the payment provider didn't confirm. The money may already have "
+        "been sent. Use Resume payout to check. It won't pay twice."
+    ) in message(approve(unknown))
+    assert (
+        "Still no confirmation from the payment provider. Try again shortly. It won't pay twice."
+    ) in message(resume(unknown))
+
+    set_mode("fail")
+    failed = make_refund(10_000)
+    assert (
+        "Refund approved, but the payment provider declined it. Nothing was paid. "
+        "You can retry with Resume payout."
+    ) in message(approve(failed))
+    assert "The payment provider declined it again. Nothing was paid." in message(resume(failed))
+
+    set_mode("ok")
+    assert "Payout confirmed. The customer was paid once." in message(resume(unknown))
+    assert "Idempotency key" in client_as("bob").get(f"/refunds/{unknown}").text

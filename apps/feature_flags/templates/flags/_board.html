@@ -1,5 +1,6 @@
 {% from "partials/table.html" import table %}
 {% from "partials/summary_card.html" import summary_card %}
+{% from "partials/audit_change.html" import audit_change %}
 {% macro action_form(url, label, css="btn", enabled=None) -%}
 <form class="inline" method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="#flags-board" hx-swap="innerHTML">
   {% if enabled is not none %}<input type="hidden" name="enabled" value="{{ 'true' if enabled else 'false' }}">{% endif %}
@@ -63,13 +64,14 @@
 <h2>Recent flag activity</h2>
 {% set audit_rows = [] %}
 {% for e in recent %}
+  {% set change %}{{ audit_change(e) }}{% endset %}
   {% set _ = audit_rows.append({
     "at": e.at.strftime("%Y-%m-%d %H:%M:%S"),
     "actor": e.actor_id or "-",
     "what": e.entity ~ " #" ~ e.entity_id,
     "action": e.action,
-    "after": e.after | tojson if e.after else "",
+    "change": change,
   }) %}
 {% endfor %}
-{{ table([("at", "At"), ("actor", "Actor"), ("what", "Entity"), ("action", "Action"), ("after", "Change")], audit_rows, empty="No flag activity yet.") }}
+{{ table([("at", "At"), ("actor", "Actor"), ("what", "Entity"), ("action", "Action"), ("change", "Change")], audit_rows, empty="No flag activity yet.") }}
 <p class="muted">Full history, including denied attempts, is in the <a href="/audit">audit log</a>.</p>

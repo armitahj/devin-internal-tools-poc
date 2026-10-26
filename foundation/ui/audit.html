@@ -2,6 +2,7 @@
 {% from "partials/table.html" import table %}
 {% from "partials/status_filter.html" import status_filter %}
 {% from "partials/summary_card.html" import summary_card %}
+{% from "partials/audit_change.html" import audit_change %}
 {% block title %}Audit log{% endblock %}
 {% block content %}
 <h1>Audit log</h1>
@@ -10,5 +11,9 @@
   {{ summary_card("Denied requests", denied, alert=denied > 0) }}
 </div>
 {{ status_filter(actions, selected_action, name="action", label="Action") }}
-{{ table([("at", "At"), ("actor", "Actor"), ("entity", "Entity"), ("action", "Action"), ("before", "Before"), ("after", "After")], rows, empty="No audit entries.") }}
+{% for row in rows %}
+  {% set change %}{{ audit_change(row.entry) }}{% endset %}
+  {% set _ = row.update({"change": change}) %}
+{% endfor %}
+{{ table([("at", "At"), ("actor", "Actor"), ("entity", "Entity"), ("action", "Action"), ("change", "Change")], rows, empty="No audit entries.") }}
 {% endblock %}

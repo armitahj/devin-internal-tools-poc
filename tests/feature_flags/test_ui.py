@@ -104,3 +104,18 @@ def test_seed_creates_six_flags_across_all_environments(database):
     assert [(r.requested_by, r.desired_enabled) for r in pending] == [("dave", True)]
     html = client_as("gwen").get("/flags").text
     assert f"/flags/requests/{pending[0].id}/approve" in html
+
+
+def test_recent_flag_activity_is_readable_with_raw_json_toggle(database):
+    prod = make_flag("prod", key="new_checkout")
+    request_id = make_request(prod, requested_by="gwen", desired_enabled=True)
+    assert client_as("carol").post(f"/flags/requests/{request_id}/approve").status_code == 303
+
+    html = client_as("dave").get("/flags").text.split("Recent flag activity")[1]
+
+    assert "Enabled: off → on" in html
+    assert "Flag: new_checkout" in html and "Environment: prod" in html
+    assert "Requested by: gwen" in html
+    assert "Status: pending → approved" in html and "Reviewed by: carol" in html
+    assert "<details" in html and "Raw JSON" in html
+    assert "&#34;key&#34;: &#34;new_checkout&#34;" in html

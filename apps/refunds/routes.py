@@ -16,7 +16,6 @@ from foundation.db import get_session
 from foundation.models import AuditLog, MockProviderLedger, User
 from foundation.policy import can, require
 from foundation.ui import make_templates
-from foundation.ui.labels import status_label
 
 router = APIRouter(prefix="/refunds")
 templates = make_templates(Path(__file__).parent / "templates")
@@ -202,23 +201,39 @@ def _detail(
     )
 
 
-def _outcome_message(session: Session, refund_id: int, verb: str) -> str:
-    status = service.get_refund(session, refund_id).status
-    return {
-        "paid": f"Refund {verb}; payout paid.",
-        "payment_failed": (
-            f"Refund {verb}; the provider declined the payout ({status_label('payment_failed')})."
-        ),
-        "payment_unknown": (
-            f"Refund {verb}; the provider did not answer ({status_label('payment_unknown')}). "
-            "Resume the payout to confirm it: it reuses the same idempotency key."
-        ),
-        "rejected": "Refund rejected.",
-        "partially_approved": (
-            "First approval recorded (1 of 2). Refunds over $1,000 need a second, different "
-            "approver before the payout runs."
-        ),
-    }.get(status, f"Refund {verb}.")
+APPROVE_MESSAGES = {
+    "paid": "Refund approved and paid.",
+    "payment_unknown": (
+        "Refund approved, but the payment provider didn't confirm. The money may already have "
+        "been sent. Use Resume payout to check. It won't pay twice."
+    ),
+    "payment_failed": (
+        "Refund approved, but the payment provider declined it. Nothing was paid. "
+        "You can retry with Resume payout."
+    ),
+    "partially_approved": (
+        "First approval recorded (1 of 2). Refunds over $1,000 need a second approval from a "
+        "different person before the customer is paid."
+    ),
+}
+RESUME_MESSAGES = {
+    "paid": "Payout confirmed. The customer was paid once.",
+    "payment_unknown": (
+        "Still no confirmation from the payment provider. Try again shortly. It won't pay twice."
+    ),
+    "payment_failed": "The payment provider declined it again. Nothing was paid.",
+}
+PROVIDER_MODE_EFFECTS = {
+    "ok": "it pays and confirms normally",
+    "fail": "it declines every payout",
+    "timeout_after_success": "it pays but doesn't confirm",
+}
+
+
+def _outcome_message(
+    session: Session, refund_id: int, messages: dict[str, str], default: str
+) -> str:
+    return messages.get(service.get_refund(session, refund_id).status, default)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -342,7 +357,10 @@ def set_provider_mode(
                 "user": user,
                 "provider_mode": provider.mode,
                 "modes": MODES,
-                "message": f"Mock provider mode set to {provider.mode}.",
+                "message": (
+                    f"Demo payment provider set to {provider.mode}: "
+                    f"{PROVIDER_MODE_EFFECTS[provider.mode]}."
+                ),
             },
         )
     return RedirectResponse(request.headers.get("referer") or "/refunds", status_code=303)
@@ -367,7 +385,7 @@ def approve_refund(
     provider: ProviderDep,
 ):
     service.approve(session, refund_id, user, provider)
-    message = _outcome_message(session, refund_id, "approved")
+    message = _outcome_message(session, refund_id, APPROVE_MESSAGES, "Refund approved.")
     return _detail(request, session, user, refund_id, message=message, provider=provider)
 
 
@@ -391,5 +409,5 @@ def resume_payout(
     provider: ProviderDep,
 ):
     service.resume_payout(session, refund_id, user, provider)
-    message = _outcome_message(session, refund_id, "payout resumed")
+    message = _outcome_message(session, refund_id, RESUME_MESSAGES, "Payout resumed.")
     return _detail(request, session, user, refund_id, message=message, provider=provider)

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Transactions (synthetic)</h1>
+<table>
+  <tr><th>ID</th><th>Customer</th><th>Description</th><th>Captured</th><th>Refunded</th><th>Reserved</th><th>Available</th></tr>
+  {% for t, b in rows %}
+  <tr>
+    <td><a href="/transactions/{{ t.id }}">{{ t.id }}</a></td><td>{{ t.customer_name }}</td><td>{{ t.description }}</td>
+    <td>{{ t.amount_cents|money }}</td><td>{{ b.refunded_cents|money }}</td><td>{{ b.reserved_cents|money }}</td><td>{{ b.available_cents|money }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

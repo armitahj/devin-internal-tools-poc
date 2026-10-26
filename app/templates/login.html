@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Choose a demo identity</h1>
+<p class="muted">Simulated authentication: there are no passwords. Permissions are still enforced on the server.</p>
+<form method="post" action="/login">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% for u in users %}
+  <p><label><input type="radio" name="user_id" value="{{ u.id }}" {% if loop.first %}checked{% endif %}>
+    {{ u.name }} <span class="muted">[{{ "request" if u.can_request }}{{ " + " if u.can_request and u.can_review }}{{ "review" if u.can_review }}]</span></label></p>
+  {% endfor %}
+  <button type="submit">Sign in (simulated)</button>
+</form>
+{% endblock %}

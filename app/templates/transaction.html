@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ txn.id }} &middot; {{ txn.customer_name }}</h1>
+<p>{{ txn.description }} &middot; captured {{ txn.amount_cents|money }} {{ txn.currency }} &middot; charge <code>{{ txn.provider_charge_id }}</code></p>
+<p>Refunded: <strong>{{ balance.refunded_cents|money }}</strong> &middot;
+   Reserved (approved / processing): <strong>{{ balance.reserved_cents|money }}</strong> &middot;
+   Available: <strong>{{ balance.available_cents|money }}</strong></p>
+
+<h2>Refunds</h2>
+<table>
+  <tr><th>#</th><th>Amount</th><th>Status</th><th>Requested by</th><th>Reviewed by</th></tr>
+  {% for r in refunds %}
+  <tr><td><a href="/refunds/{{ r.id }}">#{{ r.id }}</a></td><td>{{ r.amount_cents|money }}</td>
+      <td><span class="status {{ r.status }}">{{ r.status }}</span></td><td>{{ r.requested_by }}</td><td>{{ r.reviewed_by or "" }}</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">No refunds yet.</td></tr>{% endfor %}
+</table>
+
+{% if user.can_request %}
+<div class="box">
+<h2>Request a refund</h2>
+<form method="post" action="/transactions/{{ txn.id }}/refunds">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="request_key" value="{{ request_key }}">
+  <p><label>Amount (USD) <input name="amount" required placeholder="12.34"></label></p>
+  <p><label>Reason <input name="reason" required size="50"></label></p>
+  <button type="submit">Request refund</button>
+</form>
+<p class="muted">Simulated provider demo amounts: cents ..13 = declined &middot; ..99 = times out once, then succeeds on retry &middot;
+  ..98 = processed but response lost once &middot; ..97 = app crashes after provider success (fix with the recovery command).</p>
+</div>
+{% else %}
+<p class="muted">Your role cannot request refunds.</p>
+{% endif %}
+{% endblock %}

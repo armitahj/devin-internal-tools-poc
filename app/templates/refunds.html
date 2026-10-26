@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if status %}Refunds: {{ status }}{% else %}All refunds{% endif %}</h1>
+<p>Filter: <a href="/refunds">all</a>{% for st in S.ALL %} &middot; <a href="/refunds?status={{ st }}">{{ st }}</a>{% endfor %}</p>
+<table>
+  <tr><th>#</th><th>Transaction</th><th>Amount</th><th>Status</th><th>Requested by</th><th>Requested at (UTC)</th><th>Reviewed by</th></tr>
+  {% for r in refunds %}
+  <tr><td><a href="/refunds/{{ r.id }}">#{{ r.id }}</a></td><td><a href="/transactions/{{ r.transaction_id }}">{{ r.transaction_id }}</a></td>
+      <td>{{ r.amount_cents|money }}</td><td><span class="status {{ r.status }}">{{ r.status }}</span></td>
+      <td>{{ r.requested_by }}</td><td>{{ r.requested_at.strftime("%Y-%m-%d %H:%M:%S") }}</td><td>{{ r.reviewed_by or "" }}</td></tr>
+  {% else %}<tr><td colspan="7" class="muted">Nothing here.</td></tr>{% endfor %}
+</table>
+{% endblock %}

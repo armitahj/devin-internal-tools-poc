@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Refund #{{ r.id }} <span class="status {{ r.status }}">{{ r.status }}</span></h1>
+{% if r.status == S.PROCESSING %}<div class="flash warning">Sent to the provider but the outcome is <strong>not confirmed</strong>. Not counted as refunded; the amount stays reserved until confirmed.</div>{% endif %}
+{% if r.status == S.FAILED %}<div class="flash error">Provider rejected this refund. No money was refunded; the reserved amount was released.</div>{% endif %}
+{% if r.status == S.APPROVED %}<div class="flash">Approved but not yet executed.</div>{% endif %}
+<table>
+  <tr><th>Transaction</th><td><a href="/transactions/{{ txn.id }}">{{ txn.id }}</a> ({{ txn.customer_name }}, captured {{ txn.amount_cents|money }}, available now {{ balance.available_cents|money }})</td></tr>
+  <tr><th>Amount</th><td>{{ r.amount_cents|money }}</td></tr>
+  <tr><th>Reason</th><td>{{ r.reason }}</td></tr>
+  <tr><th>Requested</th><td>{{ r.requested_by }} at {{ r.requested_at.strftime("%Y-%m-%d %H:%M:%S") }} UTC</td></tr>
+  <tr><th>Reviewed</th><td>{% if r.reviewed_by %}{{ r.reviewed_by }} at {{ r.reviewed_at.strftime("%Y-%m-%d %H:%M:%S") }} UTC{% if r.review_note %}: "{{ r.review_note }}"{% endif %}{% else %}-{% endif %}</td></tr>
+  <tr><th>Provider attempts</th><td>{{ r.attempts }}</td></tr>
+  <tr><th>Provider refund ID</th><td>{{ r.provider_refund_id or "-" }}</td></tr>
+  <tr><th>Provider idempotency key</th><td><code>{{ r.provider_idempotency_key }}</code></td></tr>
+  <tr><th>Last error</th><td>{{ r.last_error or "-" }}</td></tr>
+</table>
+
+{% if can_review %}
+<div class="box">
+<h2>Review</h2>
+<form method="post" action="/refunds/{{ r.id }}/approve" class="inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Note <input name="note" size="40"></label>
+  <button type="submit">Approve and execute</button>
+</form>
+<form method="post" action="/refunds/{{ r.id }}/reject" class="inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="note" value="">
+  <button type="submit">Reject</button>
+</form>
+</div>
+{% elif r.status == S.REQUESTED and r.requested_by == user.id %}
+<p class="muted">You requested this refund, so a different reviewer must decide on it.</p>
+{% endif %}
+
+{% if can_retry %}
+<div class="box">
+<form method="post" action="/refunds/{{ r.id }}/reconcile">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit">Retry / reconcile with provider (same idempotency key)</button>
+</form>
+</div>
+{% endif %}
+
+<h2>Audit history</h2>
+<table>
+  <tr><th>When (UTC)</th><th>Actor</th><th>Action</th><th>Transition</th><th>Details</th></tr>
+  {% for e in events %}
+  <tr><td>{{ e.created_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] }}</td><td>{{ e.actor }}</td><td>{{ e.action }}</td>
+      <td>{{ e.from_status or "" }} &rarr; {{ e.to_status or "" }}</td>
+      <td class="muted">{% for k, v in e.details.items() if v is not none %}{{ k }}={{ v }} {% endfor %}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

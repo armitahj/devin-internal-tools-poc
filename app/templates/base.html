@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Refunds (prototype)</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; color: #222; }
+  .sim-banner { background: #ffd54f; padding: 6px 16px; font-weight: 600; font-size: 14px; }
+  nav { background: #263238; color: #fff; padding: 8px 16px; display: flex; gap: 16px; align-items: center; }
+  nav a { color: #fff; }
+  nav .who { margin-left: auto; }
+  main { padding: 16px; max-width: 1000px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; }
+  th, td { border-bottom: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 14px; }
+  .flash { padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; background: #e3f2fd; }
+  .flash.success { background: #c8e6c9; } .flash.error { background: #ffcdd2; } .flash.warning { background: #ffe0b2; }
+  .status { padding: 2px 6px; border-radius: 3px; font-size: 12px; font-weight: 600; background: #eceff1; }
+  .status.SUCCEEDED { background: #c8e6c9; } .status.FAILED, .status.REJECTED { background: #ffcdd2; }
+  .status.PROCESSING { background: #ffe0b2; } .status.APPROVED { background: #bbdefb; }
+  form.inline { display: inline; }
+  .box { border: 1px solid #ddd; padding: 12px; border-radius: 4px; margin: 12px 0; }
+  .muted { color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="sim-banner">SIMULATED AUTHENTICATION &middot; demo identities, synthetic data, simulated payment provider &middot; prototype only, not production &middot; no real money moves</div>
+<nav>
+  <strong>Refunds prototype</strong>
+  {% if user %}
+  <a href="/transactions">Transactions</a>
+  <a href="/refunds?status=REQUESTED">Review queue</a>
+  <a href="/refunds">All refunds</a>
+  <span class="who">Signed in as <strong>{{ user.name }}</strong> (simulated)
+    <form class="inline" method="post" action="/logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">Switch user</button>
+    </form>
+  </span>
+  {% endif %}
+</nav>
+<main>
+{% for kind, msg in flashes %}<div class="flash {{ kind }}">{{ msg }}</div>{% endfor %}
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>
